@@ -41,7 +41,9 @@ public class OmiljeniDogadjajRepositories {
                         rs.getInt("Organizator_ID"),
                         rs.getInt("Administrator_ID"),
                         rs.getString("Tip_dogadjaja"),
-                        rs.getString("slika_1")
+                        rs.getString("slika_1"),
+                        rs.getString("Emoji"),
+                        rs.getObject("Cijena") != null ? rs.getDouble("Cijena") : null // Dodato čitanje cijene (podržava NULL)
                 );
                 res.add(d);
             }

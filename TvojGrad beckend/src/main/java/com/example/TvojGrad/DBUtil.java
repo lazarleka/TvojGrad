@@ -8,8 +8,8 @@ public class DBUtil {
     public static Connection open()  {
 
         try {
-            String url = "jdbc:mysql://localhost:3306/tvojgrad";
-            String username = "root";
+// Obrati pažnju na kraj stringa: /tvojgrad
+            String url = "jdbc:mysql://localhost:3306/tvojgrad?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC";            String username = "root";
             String password = "lazar2004";
 
             Connection conn = DriverManager.getConnection(url, username, password);

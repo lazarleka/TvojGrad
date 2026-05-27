@@ -25,7 +25,9 @@ public class DogadjajRepositories {
                 rs.getInt("Organizator_ID"),
                 rs.getInt("Administrator_ID"),
                 rs.getString("Tip_dogadjaja"),
-                rs.getString("slika_1")
+                rs.getString("slika_1"),
+                rs.getString("Emoji"),
+                rs.getObject("Cijena") != null ? rs.getDouble("Cijena") : null // Dodato čitanje cijene (podržava NULL)
         );
     }
 
@@ -36,7 +38,8 @@ public class DogadjajRepositories {
         try {
             conn = DBUtil.open();
             result = new ArrayList<>();
-            String sql = "SELECT * FROM objava WHERE Status!='na_cekanju' and Status!='odbijena' ";
+            // Mala ispravka dupliranog uslova za status u tvom SQL-u
+            String sql = "SELECT * FROM objava WHERE Status!='na_cekanju' and Status!='odbijena'";
             PreparedStatement ps = conn.prepareStatement(sql);
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
@@ -85,7 +88,8 @@ public class DogadjajRepositories {
 
         try {
             conn = DBUtil.open();
-            String sql = "INSERT INTO objava (Naslov, Opis, Datum, Vreme, Upvote, Downvote, Status, Grad, Organizator_ID, Administrator_ID, Tip_dogadjaja, slika_1) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            // Dodata kolona Cijena i još jedan upitnik (?) na kraj
+            String sql = "INSERT INTO objava (Naslov, Opis, Datum, Vreme, Upvote, Downvote, Status, Grad, Organizator_ID, Administrator_ID, Tip_dogadjaja, slika_1, Emoji, Cijena) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, dogadjaj.getNaslov());
             ps.setString(2, dogadjaj.getOpis());
@@ -99,6 +103,8 @@ public class DogadjajRepositories {
             ps.setObject(10, dogadjaj.getAdministrator_ID());
             ps.setString(11, dogadjaj.getTip_dogadjaja());
             ps.setString(12, dogadjaj.getSlika_1());
+            ps.setString(13, dogadjaj.getEmoji());
+            ps.setObject(14, dogadjaj.getCijena()); // Dodat upis cijene (indeks 14)
             ps.executeUpdate();
 
             ResultSet rs = ps.getGeneratedKeys();
@@ -122,7 +128,8 @@ public class DogadjajRepositories {
 
         try {
             conn = DBUtil.open();
-            String sql = "UPDATE objava SET Naslov=?, Opis=?, Datum=?, Vreme=?, Upvote=?, Downvote=?, Status=?, Grad=?, Organizator_ID=?, Administrator_ID=?, Tip_dogadjaja=?, slika_1=? WHERE ID=?";
+            // Dodato ažuriranje kolone Cijena=?
+            String sql = "UPDATE objava SET Naslov=?, Opis=?, Datum=?, Vreme=?, Upvote=?, Downvote=?, Status=?, Grad=?, Organizator_ID=?, Administrator_ID=?, Tip_dogadjaja=?, slika_1=?, Emoji=?, Cijena=? WHERE ID=?";
             PreparedStatement ps = conn.prepareStatement(sql);
             ps.setString(1, d.getNaslov());
             ps.setString(2, d.getOpis());
@@ -136,7 +143,9 @@ public class DogadjajRepositories {
             ps.setObject(10, d.getAdministrator_ID());
             ps.setString(11, d.getTip_dogadjaja());
             ps.setString(12, d.getSlika_1());
-            ps.setInt(13, ID);
+            ps.setString(13, d.getEmoji());
+            ps.setObject(14, d.getCijena()); // Dodato ažuriranje cijene (indeks 14)
+            ps.setInt(15, ID); // Pomjereno na indeks 15 zbog dodavanja cijene
             ps.executeUpdate();
             return d;
         } catch (SQLException s) {
@@ -167,6 +176,82 @@ public class DogadjajRepositories {
                 try { conn.close(); }
                 catch (Exception ex) { System.out.println(ex); }
             }
+        }
+    }
+
+    public Dogadjaj upvote(int ID) {
+        Connection conn = null;
+
+        try {
+            conn = DBUtil.open();
+            String sql = "UPDATE objava SET Upvote = Upvote + 1 WHERE ID=?";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, ID);
+            ps.executeUpdate();
+            return getDogadjajById(ID);
+        } catch (SQLException s) {
+            System.out.println(s);
+            return null;
+        } finally {
+            if (conn != null) {
+                try { conn.close(); }
+                catch (Exception ex) { System.out.println(ex); }
+            }
+        }
+    }
+
+    public Dogadjaj downvote(int ID) {
+        Connection conn = null;
+
+        try {
+            conn = DBUtil.open();
+            String sql = "UPDATE objava SET Downvote = Downvote + 1 WHERE ID=?";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, ID);
+            ps.executeUpdate();
+            return getDogadjajById(ID);
+        } catch (SQLException s) {
+            System.out.println(s);
+            return null;
+        } finally {
+            if (conn != null) {
+                try { conn.close(); }
+                catch (Exception ex) { System.out.println(ex); }
+            }
+        }
+    }
+
+    public Dogadjaj removeUpvote(int ID) {
+        Connection conn = null;
+        try {
+            conn = DBUtil.open();
+            String sql = "UPDATE objava SET Upvote = GREATEST(Upvote - 1, 0) WHERE ID=?";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, ID);
+            ps.executeUpdate();
+            return getDogadjajById(ID);
+        } catch (SQLException s) {
+            System.out.println(s);
+            return null;
+        } finally {
+            if (conn != null) { try { conn.close(); } catch (Exception ex) { System.out.println(ex); } }
+        }
+    }
+
+    public Dogadjaj removeDownvote(int ID) {
+        Connection conn = null;
+        try {
+            conn = DBUtil.open();
+            String sql = "UPDATE objava SET Downvote = GREATEST(Downvote - 1, 0) WHERE ID=?";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, ID);
+            ps.executeUpdate();
+            return getDogadjajById(ID);
+        } catch (SQLException s) {
+            System.out.println(s);
+            return null;
+        } finally {
+            if (conn != null) { try { conn.close(); } catch (Exception ex) { System.out.println(ex); } }
         }
     }
 }

@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@CrossOrigin(origins = "*")
 @RequestMapping(value = "/dogadjaji")
 public class DogadjajController {
 
@@ -39,5 +40,26 @@ public class DogadjajController {
     @DeleteMapping(value = "/{DogadjajID}")
     public void obrisiDogadjaj(@PathVariable("DogadjajID") int DogadjajID) {
         this.dogadjajService.ObrisiDogadjaja(DogadjajID);
+    }
+
+    // PUT /dogadjaji/{ID}/upvote
+    @PutMapping(value = "/{DogadjajID}/upvote")
+    public Dogadjaj upvote(@PathVariable("DogadjajID") int DogadjajID) {
+        return this.dogadjajService.upvote(DogadjajID);
+    }
+
+    // PUT /dogadjaji/{ID}/downvote
+    @PutMapping(value = "/{DogadjajID}/downvote")
+    public Dogadjaj downvote(@PathVariable("DogadjajID") int DogadjajID) {
+        return this.dogadjajService.downvote(DogadjajID);
+    }
+    @PutMapping(value = "/{DogadjajID}/removeupvote")
+    public Dogadjaj removeUpvote(@PathVariable("DogadjajID") int DogadjajID) {
+        return this.dogadjajService.removeUpvote(DogadjajID);
+    }
+
+    @PutMapping(value = "/{DogadjajID}/removedownvote")
+    public Dogadjaj removeDownvote(@PathVariable("DogadjajID") int DogadjajID) {
+        return this.dogadjajService.removeDownvote(DogadjajID);
     }
 }

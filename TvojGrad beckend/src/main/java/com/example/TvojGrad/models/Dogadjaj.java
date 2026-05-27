@@ -44,6 +44,10 @@ public class Dogadjaj {
     @JsonProperty("slika_1")
     private String slika_1;
 
+    @JsonProperty("Emoji")
+    private String Emoji;
+    @JsonProperty("Cijena")
+    private Double Cijena;
     public Dogadjaj() {}
 
     public Dogadjaj(
@@ -59,7 +63,10 @@ public class Dogadjaj {
             @JsonProperty("Organizator_ID") Integer Organizator_ID,
             @JsonProperty("Administrator_ID") Integer Administrator_ID,
             @JsonProperty("Tip_dogadjaja") String Tip_dogadjaja,
-            @JsonProperty("slika_1") String slika_1) {
+            @JsonProperty("slika_1") String slika_1,
+            @JsonProperty("Emoji") String Emoji,
+            @JsonProperty("Cijena") Double Cijena
+    ) {
         this.ID = ID;
         this.Naslov = Naslov;
         this.Opis = Opis;
@@ -73,6 +80,8 @@ public class Dogadjaj {
         this.Administrator_ID = Administrator_ID;
         this.Tip_dogadjaja = Tip_dogadjaja;
         this.slika_1 = slika_1;
+        this.Emoji = Emoji;
+        this.Cijena=Cijena;
     }
 
     public Integer getID() { return ID; }
@@ -88,6 +97,8 @@ public class Dogadjaj {
     public Integer getAdministrator_ID() { return Administrator_ID; }
     public String getTip_dogadjaja() { return Tip_dogadjaja; }
     public String getSlika_1() { return slika_1; }
+    public String getEmoji() { return Emoji; }
+    public Double getCijena(){return Cijena;}
 
     public void setID(Integer ID) { this.ID = ID; }
     public void setNaslov(String naslov) { this.Naslov = naslov; }
@@ -102,4 +113,6 @@ public class Dogadjaj {
     public void setAdministrator_ID(Integer administrator_ID) { this.Administrator_ID = administrator_ID; }
     public void setTip_dogadjaja(String tip_dogadjaja) { this.Tip_dogadjaja = tip_dogadjaja; }
     public void setSlika_1(String slika_1) { this.slika_1 = slika_1; }
+    public void setEmoji(String emoji) { this.Emoji = emoji; }
+    public void setCijena(Double Cijena){this.Cijena=Cijena; }
 }

@@ -22,5 +22,5 @@ public class Tip {
     public Integer getID() { return ID; }
     public String getNaziv() { return Naziv; }
     public void setID(Integer ID) { this.ID = ID; }
-    public void setNaziv(String naziv) { this.Naziv = naziv; }
+    public void setNaziv(String Naziv) { this.Naziv = Naziv; }
 }

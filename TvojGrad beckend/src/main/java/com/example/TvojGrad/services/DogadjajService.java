@@ -34,4 +34,19 @@ public class DogadjajService {
     public void ObrisiDogadjaja(int ID) {
         this.dogadjajRepositories.ObrisiDogadjaj(ID);
     }
+
+    public Dogadjaj upvote(int ID) {
+        return this.dogadjajRepositories.upvote(ID);
+    }
+
+    public Dogadjaj downvote(int ID) {
+        return this.dogadjajRepositories.downvote(ID);
+    }
+    public Dogadjaj removeUpvote(int ID) {
+        return this.dogadjajRepositories.removeUpvote(ID);
+    }
+
+    public Dogadjaj removeDownvote(int ID) {
+        return this.dogadjajRepositories.removeDownvote(ID);
+    }
 }
