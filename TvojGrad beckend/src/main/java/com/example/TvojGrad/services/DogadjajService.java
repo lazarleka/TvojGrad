@@ -49,4 +49,20 @@ public class DogadjajService {
     public Dogadjaj removeDownvote(int ID) {
         return this.dogadjajRepositories.removeDownvote(ID);
     }
+
+    public Dogadjaj upvote(int dogadjajID, int korisnikID) {
+        return this.dogadjajRepositories.glasaj(dogadjajID, korisnikID, "up");
+    }
+
+    public Dogadjaj downvote(int dogadjajID, int korisnikID) {
+        return this.dogadjajRepositories.glasaj(dogadjajID, korisnikID, "down");
+    }
+
+    public Dogadjaj ukloniGlas(int dogadjajID, int korisnikID) {
+        return this.dogadjajRepositories.ukloniGlas(dogadjajID, korisnikID);
+    }
+
+    public String getGlas(int dogadjajID, int korisnikID) {
+        return this.dogadjajRepositories.getGlas(dogadjajID, korisnikID);
+    }
 }

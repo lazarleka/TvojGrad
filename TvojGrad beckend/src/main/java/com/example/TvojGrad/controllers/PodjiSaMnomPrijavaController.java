@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@CrossOrigin(origins = "*")
 @RequestMapping(value = "/prijave")
 public class PodjiSaMnomPrijavaController {
 
@@ -38,7 +39,25 @@ public class PodjiSaMnomPrijavaController {
     @PostMapping
     public ResponseEntity<PodjiSaMnomPrijava> kreirajPrijavu(@RequestBody PodjiSaMnomPrijava p) {
         PodjiSaMnomPrijava novaPrijava = this.prijavaService.kreirajPrijavu(p);
-        return ResponseEntity.status(HttpStatus.CREATED).body(novaPrijava);
+        return novaPrijava != null
+                ? ResponseEntity.status(HttpStatus.CREATED).body(novaPrijava)
+                : ResponseEntity.badRequest().build();
+    }
+
+    @PostMapping(value = "/{KorisnikID}/{ObjavaID}")
+    public ResponseEntity<PodjiSaMnomPrijava> kreirajPrijavuZaKorisnika(
+            @PathVariable("KorisnikID") int KorisnikID,
+            @PathVariable("ObjavaID") int ObjavaID,
+            @RequestBody PodjiSaMnomPrijava p) {
+        PodjiSaMnomPrijava novaPrijava = this.prijavaService.kreirajPrijavu(
+                p.getTekst(),
+                p.getStatus(),
+                KorisnikID,
+                ObjavaID
+        );
+        return novaPrijava != null
+                ? ResponseEntity.status(HttpStatus.CREATED).body(novaPrijava)
+                : ResponseEntity.badRequest().build();
     }
 
     @PutMapping(value = "/{ID}")

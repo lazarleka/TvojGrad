@@ -1,10 +1,13 @@
 package com.example.TvojGrad.controllers;
 
 import com.example.TvojGrad.models.Dogadjaj;
+import com.example.TvojGrad.models.VoteRequest;
 import com.example.TvojGrad.services.DogadjajService;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @CrossOrigin(origins = "*")
@@ -53,6 +56,51 @@ public class DogadjajController {
     public Dogadjaj downvote(@PathVariable("DogadjajID") int DogadjajID) {
         return this.dogadjajService.downvote(DogadjajID);
     }
+
+    @PutMapping(value = "/{DogadjajID}/upvote/{KorisnikID}")
+    public Dogadjaj upvoteKorisnika(
+            @PathVariable("DogadjajID") int DogadjajID,
+            @PathVariable("KorisnikID") int KorisnikID) {
+        return this.dogadjajService.upvote(DogadjajID, KorisnikID);
+    }
+
+    @PutMapping(value = "/{DogadjajID}/downvote/{KorisnikID}")
+    public Dogadjaj downvoteKorisnika(
+            @PathVariable("DogadjajID") int DogadjajID,
+            @PathVariable("KorisnikID") int KorisnikID) {
+        return this.dogadjajService.downvote(DogadjajID, KorisnikID);
+    }
+
+    @PostMapping(value = "/{DogadjajID}/upvote")
+    public Dogadjaj upvoteKorisnikaBody(
+            @PathVariable("DogadjajID") int DogadjajID,
+            @RequestBody VoteRequest voteRequest) {
+        return this.dogadjajService.upvote(DogadjajID, voteRequest.getKorisnikID());
+    }
+
+    @PostMapping(value = "/{DogadjajID}/downvote")
+    public Dogadjaj downvoteKorisnikaBody(
+            @PathVariable("DogadjajID") int DogadjajID,
+            @RequestBody VoteRequest voteRequest) {
+        return this.dogadjajService.downvote(DogadjajID, voteRequest.getKorisnikID());
+    }
+
+    @DeleteMapping(value = "/{DogadjajID}/vote/{KorisnikID}")
+    public Dogadjaj ukloniGlas(
+            @PathVariable("DogadjajID") int DogadjajID,
+            @PathVariable("KorisnikID") int KorisnikID) {
+        return this.dogadjajService.ukloniGlas(DogadjajID, KorisnikID);
+    }
+
+    @GetMapping(value = "/{DogadjajID}/vote/{KorisnikID}")
+    public Map<String, String> getGlas(
+            @PathVariable("DogadjajID") int DogadjajID,
+            @PathVariable("KorisnikID") int KorisnikID) {
+        Map<String, String> response = new HashMap<>();
+        response.put("vote", this.dogadjajService.getGlas(DogadjajID, KorisnikID));
+        return response;
+    }
+
     @PutMapping(value = "/{DogadjajID}/removeupvote")
     public Dogadjaj removeUpvote(@PathVariable("DogadjajID") int DogadjajID) {
         return this.dogadjajService.removeUpvote(DogadjajID);

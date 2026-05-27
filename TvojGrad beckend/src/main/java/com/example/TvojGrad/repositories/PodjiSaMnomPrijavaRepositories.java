@@ -96,6 +96,13 @@ public class PodjiSaMnomPrijavaRepositories {
     }
 
     public PodjiSaMnomPrijava kreirajPrijavu(PodjiSaMnomPrijava p) {
+        if (p == null || p.getKorisnik() == null || p.getKorisnik().getID() == null || p.getObjava_ID() == null) {
+            return null;
+        }
+        return kreirajPrijavu(p.getTekst(), p.getStatus(), p.getKorisnik().getID(), p.getObjava_ID());
+    }
+
+    public PodjiSaMnomPrijava kreirajPrijavu(String tekst, String status, int korisnikID, int objavaID) {
         Connection conn = null;
 
         try {
@@ -103,13 +110,16 @@ public class PodjiSaMnomPrijavaRepositories {
             PreparedStatement ps = conn.prepareStatement(
                     "INSERT INTO podji_sa_mnom_prijava (Tekst, Status, Korisnik_ID, Objava_ID) VALUES (?, ?, ?, ?)",
                     Statement.RETURN_GENERATED_KEYS);
-            ps.setString(1, p.getTekst());
-            ps.setString(2, p.getStatus());
-            // Prilikom slanja sa frontenda, proslijedićeš ID korisnika unutar korisnik objekta
-            ps.setInt(3, p.getKorisnik().getID());
-            ps.setObject(4, p.getObjava_ID());
+            ps.setString(1, tekst);
+            ps.setString(2, status == null || status.isBlank() ? "otvoren" : status);
+            ps.setInt(3, korisnikID);
+            ps.setInt(4, objavaID);
             ps.executeUpdate();
 
+            PodjiSaMnomPrijava p = new PodjiSaMnomPrijava();
+            p.setTekst(tekst);
+            p.setStatus(status == null || status.isBlank() ? "otvoren" : status);
+            p.setObjava_ID(objavaID);
             ResultSet rs = ps.getGeneratedKeys();
             if (rs.next()) p.setID(rs.getInt(1));
             return p;

@@ -74,10 +74,38 @@ public class PodjiSaMnomZahtevRepositories {
         }
     }
 
+    public PodjiSaMnomZahtev getZahtevByKorisnici(int posloZahtevID, int primioZahtevID) {
+        Connection conn = null;
+
+        try {
+            conn = DBUtil.open();
+            PreparedStatement ps = conn.prepareStatement(BASE_SELECT + " WHERE z.PosloZahtev=? AND z.PrimioZahtev=?");
+            ps.setInt(1, posloZahtevID);
+            ps.setInt(2, primioZahtevID);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return mapRow(rs);
+            else return null;
+        } catch (SQLException e) {
+            System.out.println(e);
+            return null;
+        } finally {
+            if (conn != null) { try { conn.close(); } catch (Exception ex) { System.out.println(ex); } }
+        }
+    }
+
     public PodjiSaMnomZahtev kreirajZahtev(PodjiSaMnomZahtev z) {
         Connection conn = null;
 
         try {
+            if (z == null || z.getPosloZahtev() == null || z.getPosloZahtev().getID() == null || z.getPrimioZahtev() == null) {
+                return null;
+            }
+
+            PodjiSaMnomZahtev postojeci = getZahtevByKorisnici(z.getPosloZahtev().getID(), z.getPrimioZahtev());
+            if (postojeci != null) {
+                return postojeci;
+            }
+
             conn = DBUtil.open();
             PreparedStatement ps = conn.prepareStatement(
                     "INSERT INTO podji_sa_mnom_zahtev (status, PosloZahtev, PrimioZahtev) VALUES (?, ?, ?)",
@@ -111,6 +139,24 @@ public class PodjiSaMnomZahtevRepositories {
             ps.setInt(4, ID);
             ps.executeUpdate();
             return z;
+        } catch (SQLException e) {
+            System.out.println(e);
+            return null;
+        } finally {
+            if (conn != null) { try { conn.close(); } catch (Exception ex) { System.out.println(ex); } }
+        }
+    }
+
+    public PodjiSaMnomZahtev azurirajStatus(int ID, String status) {
+        Connection conn = null;
+
+        try {
+            conn = DBUtil.open();
+            PreparedStatement ps = conn.prepareStatement("UPDATE podji_sa_mnom_zahtev SET status=? WHERE ID=?");
+            ps.setString(1, status);
+            ps.setInt(2, ID);
+            ps.executeUpdate();
+            return getZahtevById(ID);
         } catch (SQLException e) {
             System.out.println(e);
             return null;

@@ -1,5 +1,36 @@
-import { G } from '../constants';
-import InboxPanel from '../components/InboxPanel';
+import { useEffect, useMemo, useState } from "react";
+import { G } from "../constants";
+import InboxPanel from "../components/InboxPanel";
+import { API_BASE_URL, fetchEvents, fetchUserVote, formatEvent, getUserId } from "../api";
+import { Client } from "@stomp/stompjs";
+
+const normalizeRole = (role) => {
+  if (role === "organizator") return "organizer";
+  if (role === "administrator") return "admin";
+  if (role === "obicni") return "visitor";
+  return role || "visitor";
+};
+
+const userName = (user) => {
+  const full = `${user?.Ime || user?.ime || ""} ${user?.Prezime || user?.prezime || ""}`.trim();
+  return user?.name || full || user?.Email || user?.email || "Korisnik";
+};
+
+const initialsFor = (name) => name
+  .split(" ")
+  .filter(Boolean)
+  .slice(0, 2)
+  .map((part) => part[0])
+  .join("")
+  .toUpperCase() || "?";
+
+const statusLabel = (status) => {
+  const value = (status || "").toLowerCase();
+  if (value.includes("prihvac")) return "Prihvacen";
+  if (value.includes("odbij")) return "Odbijen";
+  if (value.includes("cek")) return "Na cekanju";
+  return status || "Na cekanju";
+};
 
 export default function ProfilePage({
   user,
@@ -17,76 +48,516 @@ export default function ProfilePage({
   incomingRequests = [],
   acceptPsmRequest,
   rejectPsmRequest,
+  onUnreadMessagesChange,
+  externalUnreadCetIds = {},
+  onMarkChatRead,
 }) {
-  const initials = user.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
-  const roleLabels = { visitor:"Posjetilac", organizer:"Organizator", admin:"Administrator" };
-  const roleClasses = { visitor:"role-visitor", organizer:"role-organizer", admin:"role-admin" };
-  const myVotedEvents = events.filter(e=>e.myVote);
-  const threadCount = Object.keys(conversations).length;
+  const uid = getUserId(user);
+  const name = userName(user);
+  const email = user?.Email || user?.email || "";
+  const role = normalizeRole(user?.Tip || user?.tip || user?.role);
+  const roleLabels = { visitor: "Posjetilac", organizer: "Organizator", admin: "Administrator" };
+  const roleClasses = { visitor: "role-visitor", organizer: "role-organizer", admin: "role-admin" };
+
+  const [backendFavorites, setBackendFavorites] = useState([]);
+  const [backendVotedEvents, setBackendVotedEvents] = useState([]);
+  const [dbRequests, setDbRequests] = useState([]);
+  const [dbCets, setDbCets] = useState([]);
+  const [dbPrijave, setDbPrijave] = useState([]);
+  const [activeCetId, setActiveCetId] = useState(null);
+  const [chatMessages, setChatMessages] = useState({});
+  const [chatInput, setChatInput] = useState("");
+  const [stompClient, setStompClient] = useState(null);
+  const [unreadCetIds, setUnreadCetIds] = useState({});
+  const [usersById, setUsersById] = useState({});
+
+  useEffect(() => {
+    if (!uid) return;
+    loadProfileData();
+  }, [uid]);
+
+  useEffect(() => {
+    if (onUnreadMessagesChange) {
+      onUnreadMessagesChange(Object.keys(unreadCetIds).length);
+    }
+  }, [unreadCetIds, onUnreadMessagesChange]);
+
+  const loadProfileData = async () => {
+    await Promise.all([loadFavorites(), loadVotes(), loadRequests(), loadCets(), loadPrijave()]);
+  };
+
+  const loadFavorites = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/OmiljeniDogadjaji/${uid}`);
+      if (!response.ok) return;
+      const data = await response.json();
+      setBackendFavorites((data || []).map(formatEvent));
+    } catch {
+      setBackendFavorites([]);
+    }
+  };
+
+  const loadVotes = async () => {
+    try {
+      const allEvents = await fetchEvents();
+      const voteEntries = await Promise.all(
+        allEvents.map(async (event) => [event, await fetchUserVote(event.id, uid)])
+      );
+      setBackendVotedEvents(
+        voteEntries
+          .filter(([, vote]) => vote)
+          .map(([event, vote]) => ({ ...event, myVote: vote }))
+      );
+    } catch {
+      setBackendVotedEvents(events.filter((event) => event.myVote));
+    }
+  };
+
+  const loadRequests = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/zahtevi`);
+      if (!response.ok) return;
+      const data = await response.json();
+      setDbRequests(data || []);
+    } catch {
+      setDbRequests([]);
+    }
+  };
+
+  const loadCets = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/cetovi/korisnik/${uid}`);
+      if (!response.ok) return;
+      const data = await response.json();
+      setDbCets(data || []);
+      await loadMissingChatUsers(data || []);
+      await Promise.all((data || []).map((cet) => loadMessages(cet.ID)));
+    } catch {
+      setDbCets([]);
+    }
+  };
+
+  const loadMissingChatUsers = async (cets) => {
+    const ids = new Set();
+    cets.forEach((cet) => {
+      const sender = cet.Posiljalac || cet.posiljalac;
+      const senderId = getUserId(sender);
+      const receiver = cet.Primalac || cet.primalac;
+      const receiverId = cet.Primalac_ID || cet.primalac_ID;
+      if (senderId) ids.add(String(senderId));
+      if (receiverId) ids.add(String(receiverId));
+      if (receiverId && receiver) {
+        setUsersById((prev) => ({ ...prev, [String(receiverId)]: receiver }));
+      }
+    });
+
+    await Promise.all([...ids].map(async (id) => {
+      if (String(id) === String(uid) || usersById[id]) return;
+      try {
+        const response = await fetch(`${API_BASE_URL}/korisnici/${id}`);
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data?.ID) {
+          setUsersById((prev) => ({ ...prev, [String(id)]: data }));
+        }
+      } catch {
+        // Ostaje fallback ako backend nije dostupan.
+      }
+    }));
+  };
+
+  const loadPrijave = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/prijave`);
+      if (!response.ok) return;
+      const data = await response.json();
+      setDbPrijave(data || []);
+      const nextUsers = {};
+      (data || []).forEach((prijava) => {
+        const prijavaUser = prijava.Korisnik || prijava.korisnik;
+        const prijavaUserId = getUserId(prijavaUser);
+        if (prijavaUserId && prijavaUser) {
+          nextUsers[String(prijavaUserId)] = prijavaUser;
+        }
+      });
+      if (Object.keys(nextUsers).length > 0) {
+        setUsersById((prev) => ({ ...prev, ...nextUsers }));
+      }
+    } catch {
+      setDbPrijave([]);
+    }
+  };
+
+  const loadMessages = async (cetID) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/poruke-ceta/cet/${cetID}`);
+      if (!response.ok) return;
+      const data = await response.json();
+      setChatMessages((prev) => ({ ...prev, [cetID]: data || [] }));
+      const messageUsers = {};
+      (data || []).forEach((message) => {
+        const messageSender = message.Posiljalac || message.posiljalac;
+        const messageSenderId = getUserId(messageSender);
+        if (messageSenderId && messageSender) {
+          messageUsers[String(messageSenderId)] = messageSender;
+        }
+      });
+      if (Object.keys(messageUsers).length > 0) {
+        setUsersById((prev) => ({ ...prev, ...messageUsers }));
+      }
+      const senderIds = [...new Set((data || [])
+        .map((message) => message.Posiljalac_ID || message.posiljalacID)
+        .filter((id) => id && String(id) !== String(uid) && !usersById[String(id)]))];
+      await Promise.all(senderIds.map(async (id) => {
+        try {
+          const userResponse = await fetch(`${API_BASE_URL}/korisnici/${id}`);
+          if (!userResponse.ok) return;
+          const userData = await userResponse.json();
+          if (userData?.ID) {
+            setUsersById((prev) => ({ ...prev, [String(id)]: userData }));
+          }
+        } catch {
+          // Ime ce ostati genericki fallback ako korisnik ne moze da se ucita.
+        }
+      }));
+    } catch {
+      setChatMessages((prev) => ({ ...prev, [cetID]: [] }));
+    }
+  };
+
+  useEffect(() => {
+    if (!uid || dbCets.length === 0) return undefined;
+    let client;
+    let cancelled = false;
+
+    const connect = async () => {
+      window.global = window.global || window;
+      const { default: SockJS } = await import("sockjs-client");
+      if (cancelled) return;
+
+      client = new Client({
+        webSocketFactory: () => new SockJS(`${API_BASE_URL}/ws-tvojgrad`),
+        reconnectDelay: 3000,
+        onConnect: () => {
+          dbCets.forEach((cet) => {
+          client.subscribe(`/topic/cet/${cet.ID}`, (message) => {
+            const received = JSON.parse(message.body);
+            const senderId = received.Posiljalac_ID || received.posiljalacID;
+            const sender = received.Posiljalac || received.posiljalac;
+            if (senderId && sender) {
+              setUsersById((prev) => ({ ...prev, [String(senderId)]: sender }));
+            }
+            setChatMessages((prev) => ({
+              ...prev,
+              [cet.ID]: [...(prev[cet.ID] || []), received],
+            }));
+            if (String(senderId) !== String(uid) && String(activeCetId) !== String(cet.ID)) {
+              setUnreadCetIds((prev) => ({ ...prev, [cet.ID]: true }));
+            }
+          });
+          });
+        },
+      });
+
+      client.activate();
+      setStompClient(client);
+    };
+
+    connect();
+    return () => {
+      cancelled = true;
+      if (client) client.deactivate();
+      setStompClient(null);
+    };
+  }, [uid, activeCetId, dbCets.map((cet) => cet.ID).join(",")]);
+
+  const ensureCetForRequest = async (request) => {
+    const sender = request.PosloZahtev || request.posloZahtev;
+    const senderId = getUserId(sender);
+    const receiverId = request.PrimioZahtev || request.primioZahtev;
+    const prijavaOwnerId = String(uid) === String(receiverId) ? receiverId : receiverId;
+    const targetPrijava = dbPrijave.find((prijava) => String(getUserId(prijava.Korisnik || prijava.korisnik)) === String(prijavaOwnerId));
+    if (!senderId || !receiverId || !targetPrijava?.ID) return null;
+
+    const existing = dbCets.find((cet) => {
+      const cetSenderId = getUserId(cet.Posiljalac || cet.posiljalac);
+      return String(cet.Prijava_ID || cet.prijava_ID) === String(targetPrijava.ID) &&
+        ((String(cetSenderId) === String(senderId) && String(cet.Primalac_ID || cet.primalac_ID) === String(receiverId)) ||
+          (String(cetSenderId) === String(receiverId) && String(cet.Primalac_ID || cet.primalac_ID) === String(senderId)));
+    });
+    if (existing) return existing;
+
+    const response = await fetch(`${API_BASE_URL}/cetovi`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        Prijava_ID: targetPrijava.ID,
+        Posiljalac: { ID: senderId },
+        Primalac_ID: receiverId,
+        Rejting_1: null,
+        Rejting_2: null,
+      }),
+    });
+    if (!response.ok) return null;
+    const created = await response.json();
+    await loadCets();
+    return created;
+  };
+
+  const openChatForRequest = async (request) => {
+    const cet = await ensureCetForRequest(request);
+    if (cet?.ID) {
+      await loadMessages(cet.ID);
+      await loadCets();
+      setActiveCetId(cet.ID);
+      setUnreadCetIds((prev) => {
+        const next = { ...prev };
+        delete next[cet.ID];
+        return next;
+      });
+      setProfileTab("inbox");
+    }
+  };
+
+  const updateRequestStatus = async (request, nextStatus) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/zahtevi/${request.ID}/status/${encodeURIComponent(nextStatus)}`, {
+        method: "PUT",
+      });
+      if (!response.ok) throw new Error("Status nije sacuvan");
+      if (nextStatus === "prihvacen") {
+        const cet = await ensureCetForRequest(request);
+        if (cet?.ID) {
+          await loadMessages(cet.ID);
+          setActiveCetId(cet.ID);
+        }
+      }
+      await loadRequests();
+      await loadCets();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const favoriteList = backendFavorites.length ? backendFavorites : favEvents;
+  const votedEvents = backendVotedEvents.length ? backendVotedEvents : events.filter((event) => event.myVote);
+  const receivedRequests = useMemo(
+    () => dbRequests.filter((request) => String(request.PrimioZahtev || request.primioZahtev) === String(uid)),
+    [dbRequests, uid]
+  );
+  const sentRequests = useMemo(
+    () => dbRequests.filter((request) => String(getUserId(request.PosloZahtev || request.posloZahtev)) === String(uid)),
+    [dbRequests, uid]
+  );
+  const acceptedPairs = useMemo(() => {
+    const pairs = new Set();
+    dbRequests.forEach((request) => {
+      if (statusLabel(request.status).toLowerCase() !== "prihvacen") return;
+      const senderId = getUserId(request.PosloZahtev || request.posloZahtev);
+      const receiverId = request.PrimioZahtev || request.primioZahtev;
+      if (senderId && receiverId) {
+        pairs.add([String(senderId), String(receiverId)].sort().join(":"));
+      }
+    });
+    return pairs;
+  }, [dbRequests]);
+  const acceptedCets = useMemo(
+    () => dbCets.filter((cet) => {
+      const senderId = getUserId(cet.Posiljalac || cet.posiljalac);
+      const receiverId = cet.Primalac_ID || cet.primalac_ID;
+      return senderId && receiverId && acceptedPairs.has([String(senderId), String(receiverId)].sort().join(":"));
+    }),
+    [dbCets, acceptedPairs]
+  );
+
+  const pendingReceived = receivedRequests.filter((request) => statusLabel(request.status).toLowerCase() === "na cekanju");
+  const threadCount = Object.keys(conversations || {}).length;
+  const totalUnread = unreadCount + pendingReceived.length;
 
   const tabs = [
-    { id:"favorites", label:"❤️ Omiljeni", count: favEvents.length },
-    { id:"inbox", label:"💬 Poruke", count: unreadCount, badge: unreadCount > 0 },
-    { id:"votes", label:"👍 Glasovi", count: myVotedEvents.length },
-    ...(user.role==="organizer" ? [{ id:"organizer", label:"➕ Moji događaji" }] : []),
-    ...(user.role==="admin" ? [{ id:"admin-link", label:"⚙️ Admin panel" }] : []),
+    { id: "favorites", label: "❤️ Omiljeni", count: favoriteList.length },
+    { id: "inbox", label: "💬 Poruke i zahtjevi", count: totalUnread, badge: totalUnread > 0 },
+    { id: "sent-requests", label: "📨 Poslati zahtjevi", count: sentRequests.length },
+    { id: "votes", label: "👍 Glasovi", count: votedEvents.length },
+    ...(role === "organizer" ? [{ id: "organizer", label: "➕ Moji dogadjaji" }] : []),
+    ...(role === "admin" ? [{ id: "admin-link", label: "⚙️ Admin panel" }] : []),
   ];
 
-  const handleTabClick = (t) => {
-    if (t.id === "organizer") { navigate("organizer"); return; }
-    if (t.id === "admin-link") { navigate("admin"); return; }
-    setProfileTab(t.id);
+  const handleTabClick = (tab) => {
+    if (tab.id === "organizer") { navigate("organizer"); return; }
+    if (tab.id === "admin-link") { navigate("admin"); return; }
+    setProfileTab(tab.id);
   };
+
+  const formatDate = (value) => {
+    if (!value) return "/";
+    const dateValue = new Date(value);
+    if (Number.isNaN(dateValue.getTime())) return String(value);
+    return dateValue.toLocaleDateString("sr-Latn", { day: "numeric", month: "long", year: "numeric" });
+  };
+
+  const renderEventList = (list, emptyText, metaFor) => (
+    list.length > 0 ? list.map((event) => (
+      <div key={event.id || event.ID} className="my-event-item profile-event-item" style={{ cursor: "pointer" }} onClick={() => navigate("detail", event)}>
+        <div className="my-event-emoji">{event.emoji || "📌"}</div>
+        <div className="my-event-info">
+          <div className="my-event-title">{event.title || event.Naslov}</div>
+          <div className="profile-event-meta">{metaFor(event)}</div>
+        </div>
+      </div>
+    )) : <div style={{ color: G.muted, fontSize: 14, textAlign: "center", padding: "1.5rem" }}>{emptyText}</div>
+  );
+
+  const renderRequest = (request, mode) => {
+    const sender = request.PosloZahtev || request.posloZahtev;
+    const senderName = userName(sender);
+    const senderInitials = initialsFor(senderName);
+    const currentStatus = statusLabel(request.status);
+    const isPending = currentStatus.toLowerCase() === "na cekanju";
+    const isAccepted = currentStatus.toLowerCase() === "prihvacen";
+
+    return (
+      <div key={request.ID} className="request-card">
+        <div className="avatar">{senderInitials}</div>
+        <div className="request-info">
+          <div className="request-name">{mode === "sent" ? `Za korisnika #${request.PrimioZahtev}` : senderName}</div>
+          <div className="request-meta">Status: {currentStatus}</div>
+        </div>
+        {mode === "received" && isPending && (
+          <div className="request-actions">
+            <button className="action-btn action-approve" onClick={() => updateRequestStatus(request, "prihvacen")}>
+              Prihvati
+            </button>
+            <button className="action-btn action-reject" onClick={() => updateRequestStatus(request, "odbijen")}>
+              Odbij
+            </button>
+          </div>
+        )}
+        {isAccepted && (
+          <div className="request-actions">
+            <button className="action-btn action-approve" onClick={() => openChatForRequest(request)}>
+              Otvori chat
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const sendBackendMessage = () => {
+    if (!activeCetId || !chatInput.trim()) return;
+    const payload = {
+      Cet_ID: activeCetId,
+      Posiljalac_ID: uid,
+      Tekst: chatInput.trim(),
+    };
+    if (stompClient?.connected) {
+      stompClient.publish({ destination: "/app/chat.posalji", body: JSON.stringify(payload) });
+    }
+    setChatInput("");
+  };
+
+  const activeCet = acceptedCets.find((cet) => String(cet.ID) === String(activeCetId));
+  const backendChatMessages = activeCetId ? chatMessages[activeCetId] || [] : [];
+  const latestMessageIdForCet = (cetId) => Math.max(0, ...((chatMessages[cetId] || []).map((message) => Number(message.ID || 0))));
+
+  useEffect(() => {
+    if (activeCetId && onMarkChatRead) {
+      onMarkChatRead(activeCetId, latestMessageIdForCet(activeCetId));
+    }
+  }, [activeCetId, backendChatMessages.length]);
+  const getOtherUser = (cet) => {
+    const sender = cet.Posiljalac || cet.posiljalac;
+    const senderId = getUserId(sender);
+    const receiver = cet.Primalac || cet.primalac;
+    const receiverId = cet.Primalac_ID || cet.primalac_ID;
+    const prijava = dbPrijave.find((p) => String(p.ID) === String(cet.Prijava_ID || cet.prijava_ID));
+    const prijavaUser = prijava?.Korisnik || prijava?.korisnik;
+    const messageOtherId = (chatMessages[cet.ID] || [])
+      .map((message) => message.Posiljalac_ID || message.posiljalacID)
+      .find((id) => id && String(id) !== String(uid));
+    const messageOtherUser = (chatMessages[cet.ID] || [])
+      .map((message) => message.Posiljalac || message.posiljalac)
+      .find((messageSender) => messageSender && String(getUserId(messageSender)) !== String(uid)) ||
+      (messageOtherId ? usersById[String(messageOtherId)] : null);
+
+    if (messageOtherUser) return messageOtherUser;
+    if (senderId && String(senderId) !== String(uid)) return sender || usersById[String(senderId)] || null;
+    if (receiverId && String(receiverId) !== String(uid)) return receiver || usersById[String(receiverId)] || null;
+
+    const matchingRequest = dbRequests.find((request) => {
+      if (statusLabel(request.status).toLowerCase() !== "prihvacen") return false;
+      const requestSenderId = getUserId(request.PosloZahtev || request.posloZahtev);
+      const requestReceiverId = request.PrimioZahtev || request.primioZahtev;
+      return [String(requestSenderId), String(requestReceiverId)].sort().join(":") ===
+        [String(senderId), String(receiverId)].sort().join(":");
+    });
+
+    if (matchingRequest) {
+      const requestSender = matchingRequest.PosloZahtev || matchingRequest.posloZahtev;
+      const requestSenderId = getUserId(requestSender);
+      if (String(requestSenderId) !== String(uid)) return requestSender;
+      return usersById[String(matchingRequest.PrimioZahtev || matchingRequest.primioZahtev)] || prijavaUser || null;
+    }
+
+    if (String(senderId) === String(uid)) {
+      return receiver || usersById[String(receiverId)] || prijavaUser || null;
+    }
+    return sender || usersById[String(senderId)] || null;
+  };
+  const activeOtherUser = activeCet ? getOtherUser(activeCet) : null;
+  const activeOtherName = activeOtherUser ? userName(activeOtherUser) : "Chat";
 
   return (
     <div className="main">
       <div className="profile-grid">
-        {/* Left: profile card */}
         <div>
           <div className="profile-card">
-            <div className="profile-avatar">{initials}</div>
-            <div className="profile-name">{user.name}</div>
-            <div className="profile-email">{user.email}</div>
-            <span className={`role-badge ${roleClasses[user.role]}`}>{roleLabels[user.role]}</span>
+            <div className="profile-avatar">{initialsFor(name)}</div>
+            <div className="profile-name">{name}</div>
+            <div className="profile-email">{email}</div>
+            <span className={`role-badge ${roleClasses[role]}`}>{roleLabels[role]}</span>
             <div className="profile-stats">
-              <div className="profile-stat"><div className="profile-stat-val">{favEvents.length}</div><div className="profile-stat-label">Omiljeni</div></div>
-              <div className="profile-stat"><div className="profile-stat-val">{myVotedEvents.length}</div><div className="profile-stat-label">Glasovi</div></div>
+              <div className="profile-stat"><div className="profile-stat-val">{favoriteList.length}</div><div className="profile-stat-label">Omiljeni</div></div>
+              <div className="profile-stat"><div className="profile-stat-val">{votedEvents.length}</div><div className="profile-stat-label">Glasovi</div></div>
               <div className="profile-stat"><div className="profile-stat-val">{threadCount}</div><div className="profile-stat-label">Razgovori</div></div>
             </div>
             <div className="profile-nav">
-              {tabs.map(t => (
-                <button key={t.id} className={`profile-nav-btn${profileTab===t.id?" active":""}`} onClick={() => handleTabClick(t)}>
-                  {t.label}
-                  {t.badge && <span className="nav-badge" style={{marginLeft:"auto"}}>{t.count}</span>}
+              {tabs.map((tab) => (
+                <button key={tab.id} className={`profile-nav-btn${profileTab === tab.id ? " active" : ""}`} onClick={() => handleTabClick(tab)}>
+                  {tab.label}
+                  {tab.badge && <span className="nav-badge" style={{ marginLeft: "auto" }}>{tab.count}</span>}
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Right: content */}
         <div>
           {profileTab === "favorites" && (
             <div className="form-card">
-              <h3>❤️ Omiljeni događaji ({favEvents.length})</h3>
-              {favEvents.length > 0 ? favEvents.map(e=>(
-                <div key={e.id} className="my-event-item" style={{cursor:"pointer"}} onClick={()=>navigate("detail",e)}>
-                  <div style={{fontSize:28}}>{e.emoji}</div>
-                  <div className="my-event-info">
-                    <div className="my-event-title">{e.title}</div>
-                    <div className="my-event-meta">📅 {e.date} · 📍 {e.city}</div>
-                  </div>
-                </div>
-              )) : <div style={{color:G.muted,fontSize:14,textAlign:"center",padding:"1.5rem"}}>Niste sačuvali nijedan omiljeni događaj.</div>}
+              <h3>❤️ Omiljeni dogadjaji ({favoriteList.length})</h3>
+              {renderEventList(
+                favoriteList,
+                "Niste sacuvali nijedan omiljeni dogadjaj.",
+                (event) => (
+                  <>
+                    <span>{formatDate(event.date || event.Datum)}</span>
+                    <span>{event.city || event.Grad || "/"}</span>
+                  </>
+                )
+              )}
             </div>
           )}
 
           {profileTab === "inbox" && (
             <div className="form-card">
-              <h3>💬 Moje poruke {unreadCount > 0 && <span className="nav-badge" style={{fontSize:11,padding:"2px 7px",width:"auto",height:"auto",borderRadius:10}}>{unreadCount} nova</span>}</h3>
-              {incomingRequests.length > 0 && (
+              <h3>💬 Poruke i zahtjevi {totalUnread > 0 && <span className="nav-badge" style={{ fontSize: 11, padding: "2px 7px", width: "auto", height: "auto", borderRadius: 10 }}>{totalUnread} nova</span>}</h3>
+
+              {(receivedRequests.length > 0 || incomingRequests.length > 0) && (
                 <div className="request-list">
-                  <div className="request-title">Zahtjevi za "Podji sa mnom"</div>
+                  <div className="request-title">Primljeni zahtjevi za "Podji sa mnom"</div>
+                  {receivedRequests.map((request) => renderRequest(request, "received"))}
                   {incomingRequests.map((req) => (
                     <div key={req.id} className="request-card">
                       <div className="avatar">{req.requester.initials}</div>
@@ -102,22 +573,111 @@ export default function ProfilePage({
                   ))}
                 </div>
               )}
-              <InboxPanel conversations={conversations} activeThread={activeThread} setActiveThread={setActiveThread} sendMsg={sendMsg} markRead={markRead} user={user} />
+
+              {acceptedCets.length > 0 ? (
+                <div className="inbox-layout">
+                  <div className="inbox-sidebar">
+                    <div style={{ fontSize: 13, fontWeight: 600, color: G.muted, marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      Razgovori
+                    </div>
+                    {acceptedCets.map((cet) => {
+                      const otherUser = getOtherUser(cet);
+                      const otherName = otherUser ? userName(otherUser) : "Korisnik";
+                      const otherEmail = otherUser?.Email || otherUser?.email || "";
+                      const isUnread = Boolean(unreadCetIds[cet.ID] || externalUnreadCetIds[cet.ID]);
+                      return (
+                        <div
+                          key={cet.ID}
+                          className={`inbox-thread${String(activeCetId) === String(cet.ID) ? " active-thread" : ""}${isUnread ? " unread-thread" : ""}`}
+                          onClick={() => {
+                            setActiveCetId(cet.ID);
+                            setUnreadCetIds((prev) => {
+                              const next = { ...prev };
+                              delete next[cet.ID];
+                              return next;
+                            });
+                            if (onMarkChatRead) {
+                              onMarkChatRead(cet.ID, latestMessageIdForCet(cet.ID));
+                            }
+                          }}
+                        >
+                          <div className="avatar">{initialsFor(otherName)}</div>
+                          <div className="inbox-thread-info">
+                            <div className="inbox-thread-name">{otherName}</div>
+                            <div className="inbox-thread-preview">{isUnread ? "Nova poruka" : (otherEmail || "Chat je aktivan")}</div>
+                          </div>
+                          {isUnread && <div className="inbox-unread" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="inbox-main">
+                    {activeCet ? (
+                      <>
+                        <div className="inbox-main-header">
+                          <div className="avatar avatar-lg">{initialsFor(activeOtherName)}</div>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: 15, color: G.greenDark }}>{activeOtherName}</div>
+                            <div style={{ fontSize: 12, color: G.muted }}>Pođi sa mnom chat</div>
+                          </div>
+                        </div>
+                        <div className="inbox-msgs">
+                          {backendChatMessages.map((message) => {
+                            const mine = String(message.Posiljalac_ID || message.posiljalacID) === String(uid);
+                            return (
+                              <div key={message.ID || `${message.Vrijeme}-${message.Tekst}`} className={`chat-msg${mine ? " me" : ""}`}>
+                                {message.Tekst || message.tekst}
+                                <div style={{ fontSize: 10, opacity: 0.6, marginTop: 3, textAlign: mine ? "right" : "left" }}>
+                                  {message.Vrijeme || message.vrijeme || ""}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="inbox-input">
+                          <input
+                            value={chatInput}
+                            onChange={(ev) => setChatInput(ev.target.value)}
+                            onKeyDown={(ev) => ev.key === "Enter" && sendBackendMessage()}
+                            placeholder="Napiši poruku..."
+                          />
+                          <button className="chat-send" onClick={sendBackendMessage}>Pošalji</button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="inbox-empty">💬<span>Odaberi razgovor s lijeve strane</span></div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <InboxPanel conversations={conversations} activeThread={activeThread} setActiveThread={setActiveThread} sendMsg={sendMsg} markRead={markRead} user={user} />
+              )}
+            </div>
+          )}
+
+          {profileTab === "sent-requests" && (
+            <div className="form-card">
+              <h3>📨 Poslati zahtjevi ({sentRequests.length})</h3>
+              {sentRequests.length > 0 ? (
+                <div className="request-list" style={{ marginBottom: 0 }}>
+                  {sentRequests.map((request) => renderRequest(request, "sent"))}
+                </div>
+              ) : (
+                <div style={{ color: G.muted, fontSize: 14, textAlign: "center", padding: "1.5rem" }}>
+                  Nemate poslatih zahtjeva.
+                </div>
+              )}
             </div>
           )}
 
           {profileTab === "votes" && (
             <div className="form-card">
-              <h3>👍 Glasali ste za ({myVotedEvents.length})</h3>
-              {myVotedEvents.length > 0 ? myVotedEvents.map(e=>(
-                <div key={e.id} className="my-event-item" style={{cursor:"pointer"}} onClick={()=>navigate("detail",e)}>
-                  <div style={{fontSize:28}}>{e.emoji}</div>
-                  <div className="my-event-info">
-                    <div className="my-event-title">{e.title}</div>
-                    <div className="my-event-meta">{e.myVote==="up"?"👍 Sviđa mi se":"👎 Ne sviđa mi se"}</div>
-                  </div>
-                </div>
-              )) : <div style={{color:G.muted,fontSize:14,textAlign:"center",padding:"1.5rem"}}>Niste glasali ni za jedan događaj.</div>}
+              <h3>👍 Glasali ste za ({votedEvents.length})</h3>
+              {renderEventList(
+                votedEvents,
+                "Niste glasali ni za jedan dogadjaj.",
+                (event) => event.myVote === "up" ? "👍 Svidja mi se" : "👎 Ne svidja mi se"
+              )}
             </div>
           )}
         </div>

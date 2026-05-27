@@ -1,39 +1,14 @@
-import { useState, useEffect } from 'react';
-import EventCard from '../components/EventCard';
-
-const API_BASE_URL = "http://localhost:8080";
-
-const getEmojiByCategory = (type) => {
-  switch(type?.toLowerCase()) {
-    case 'koncert': return '🎵';
-    case 'festival': return '🎪';
-    case 'sportski dogadjaj': return '⚽';
-    case 'izlozba': return '🎨';
-    case 'pozoriste': return '🎭';
-    case 'humanitarna akcija': return '❤️';
-    case 'edukacija': return '📚';
-    case 'sajam': return '🛍️';
-    case 'proslava': return '🎉';
-    default: return '📌';
-  }
-};
-
-const getColorByCategory = (type) => {
-  switch(type?.toLowerCase()) {
-    case 'koncert': return '#1D9E75';
-    case 'sportski dogadjaj': return '#3B6D11';
-    case 'izlozba': return '#533AB7';
-    case 'edukacija': return '#185FA5';
-    case 'festival': return '#BA7517';
-    default: return '#993556';
-  }
-};
+import { useEffect, useState } from "react";
+import EventCard from "../components/EventCard";
+import { API_BASE_URL, fetchUserVote, formatEvent, getUserId, removeLegacyVote, submitVote } from "../api";
 
 const loadVotes = () => {
   try {
     const saved = localStorage.getItem("myVotes");
     return saved ? JSON.parse(saved) : {};
-  } catch { return {}; }
+  } catch {
+    return {};
+  }
 };
 
 const saveVotes = (votes) => {
@@ -45,10 +20,13 @@ export default function FavoritesPage({ navigate, user }) {
   const [loading, setLoading] = useState(true);
   const [myVotes, setMyVotes] = useState(loadVotes);
 
-  const userId = user?.id || user?.ID;
+  const userId = getUserId(user);
 
   useEffect(() => {
-    if (!userId) { setLoading(false); return; }
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
     fetchFavorites();
   }, [userId]);
 
@@ -57,84 +35,49 @@ export default function FavoritesPage({ navigate, user }) {
       const response = await fetch(`${API_BASE_URL}/OmiljeniDogadjaji/${userId}`);
       if (response.ok) {
         const data = await response.json();
-        const formattedData = (data || []).map(e => ({
-          ...e,
-          id: e.ID,
-          title: e.Naslov,
-          description: e.Opis,
-          date: e.Datum,
-          time: e.Vreme,
-          city: e.Grad,
-          coverColor: getColorByCategory(e.Tip_dogadjaja),
-          emoji: e.slika_1 ? null : (e.Emoji || getEmojiByCategory(e.Tip_dogadjaja)),
-          price: null,
-          votes: {
-            up: e.Upvote ?? 0,
-            down: e.Downvote ?? 0
-          }
-        }));
+        const formattedData = (data || []).map(formatEvent);
         setFavEvents(formattedData);
+
+        const voteEntries = await Promise.all(
+          formattedData.map(async (event) => [event.id, await fetchUserVote(event.id, userId)])
+        );
+        const nextVotes = Object.fromEntries(voteEntries.filter(([, vote]) => vote));
+        setMyVotes(nextVotes);
+        saveVotes(nextVotes);
       }
     } catch (error) {
-      console.error("Mrežna greška:", error);
+      console.error("Mrezna greska:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpvote = async (eventId) => {
-    const currentVote = myVotes[eventId];
-    if (currentVote === "up") return;
+  const handleVote = async (eventId, voteType) => {
+    if (myVotes[eventId] === voteType) return;
 
+    const previousVote = myVotes[eventId];
     try {
-      const response = await fetch(`${API_BASE_URL}/dogadjaji/${eventId}/upvote`, { method: 'PUT' });
-      if (response.ok) {
-        const updated = await response.json();
-        if (currentVote === "down") {
-          await fetch(`${API_BASE_URL}/dogadjaji/${eventId}/removedownvote`, { method: 'PUT' });
-        }
-        const newVotes = { ...myVotes, [eventId]: "up" };
-        setMyVotes(newVotes);
-        saveVotes(newVotes);
-        setFavEvents(prev => prev.map(e =>
-          e.id === eventId
-            ? { ...e, votes: { up: updated.Upvote, down: currentVote === "down" ? (updated.Downvote - 1) : updated.Downvote } }
-            : e
-        ));
+      const updated = await submitVote(eventId, userId, voteType);
+      let nextEvent = updated;
+      if (previousVote && previousVote !== voteType) {
+        nextEvent = await removeLegacyVote(eventId, previousVote).catch(() => updated);
       }
-    } catch (error) { console.error("Greška pri upvote:", error); }
-  };
-
-  const handleDownvote = async (eventId) => {
-    const currentVote = myVotes[eventId];
-    if (currentVote === "down") return;
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/dogadjaji/${eventId}/downvote`, { method: 'PUT' });
-      if (response.ok) {
-        const updated = await response.json();
-        if (currentVote === "up") {
-          await fetch(`${API_BASE_URL}/dogadjaji/${eventId}/removeupvote`, { method: 'PUT' });
-        }
-        const newVotes = { ...myVotes, [eventId]: "down" };
-        setMyVotes(newVotes);
-        saveVotes(newVotes);
-        setFavEvents(prev => prev.map(e =>
-          e.id === eventId
-            ? { ...e, votes: { up: currentVote === "up" ? (updated.Upvote - 1) : updated.Upvote, down: updated.Downvote } }
-            : e
-        ));
-      }
-    } catch (error) { console.error("Greška pri downvote:", error); }
+      const nextVotes = { ...myVotes, [eventId]: voteType };
+      setMyVotes(nextVotes);
+      saveVotes(nextVotes);
+      setFavEvents((prev) => prev.map((e) => (e.id === eventId ? nextEvent : e)));
+    } catch (error) {
+      console.error("Greska pri glasanju:", error);
+      alert("Glas nije sacuvan. Provjerite da li je backend pokrenut.");
+    }
   };
 
   const handleToggleFav = async (eventId) => {
     try {
-      await fetch(`${API_BASE_URL}/OmiljeniDogadjaji/${userId}/${eventId}`, { method: 'DELETE' });
-      // Ukloni iz liste odmah
-      setFavEvents(prev => prev.filter(e => e.id !== eventId));
+      await fetch(`${API_BASE_URL}/OmiljeniDogadjaji/${userId}/${eventId}`, { method: "DELETE" });
+      setFavEvents((prev) => prev.filter((e) => e.id !== eventId));
     } catch (error) {
-      console.error("Greška pri uklanjanju iz omiljenih:", error);
+      console.error("Greska pri uklanjanju iz omiljenih:", error);
     }
   };
 
@@ -143,7 +86,7 @@ export default function FavoritesPage({ navigate, user }) {
       <div className="main">
         <div className="empty">
           <span className="empty-icon">🔒</span>
-          Prijavite se da biste vidjeli omiljene događaje.
+          Prijavite se da biste vidjeli omiljene dogadjaje.
         </div>
       </div>
     );
@@ -152,7 +95,7 @@ export default function FavoritesPage({ navigate, user }) {
   if (loading) {
     return (
       <div className="main">
-        <div className="empty">Učitavanje omiljenih događaja...</div>
+        <div className="empty">Ucitavanje omiljenih dogadjaja...</div>
       </div>
     );
   }
@@ -160,19 +103,19 @@ export default function FavoritesPage({ navigate, user }) {
   return (
     <div className="main">
       <div className="page-header">
-        <div className="page-title">❤️ Moji omiljeni</div>
-        <div className="page-sub">{favEvents.length} sačuvanih događaja</div>
+        <div className="page-title">Moji omiljeni</div>
+        <div className="page-sub">{favEvents.length} sacuvanih dogadjaja</div>
       </div>
       {favEvents.length > 0 ? (
         <div className="grid">
-          {favEvents.map(e => (
+          {favEvents.map((e) => (
             <EventCard
               key={e.id}
               event={e}
               isFav={true}
               myVote={myVotes[e.id]}
-              onUpvote={handleUpvote}
-              onDownvote={handleDownvote}
+              onUpvote={(id) => handleVote(id, "up")}
+              onDownvote={(id) => handleVote(id, "down")}
               toggleFav={handleToggleFav}
               navigate={navigate}
             />
@@ -180,8 +123,8 @@ export default function FavoritesPage({ navigate, user }) {
         </div>
       ) : (
         <div className="empty">
-          <span className="empty-icon">💔</span>
-          Niste sačuvali nijedan omiljeni događaj.
+          <span className="empty-icon">♡</span>
+          Niste sacuvali nijedan omiljeni dogadjaj.
         </div>
       )}
     </div>

@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@CrossOrigin(origins = "*")
 @RequestMapping(value = "/zahtevi")
 public class PodjiSaMnomZahtevController {
 
@@ -29,15 +30,33 @@ public class PodjiSaMnomZahtevController {
         return z != null ? ResponseEntity.ok(z) : ResponseEntity.notFound().build();
     }
 
+    @GetMapping(value = "/korisnici/{PosloZahtevID}/{PrimioZahtevID}")
+    public ResponseEntity<PodjiSaMnomZahtev> getZahtevByKorisnici(
+            @PathVariable("PosloZahtevID") int PosloZahtevID,
+            @PathVariable("PrimioZahtevID") int PrimioZahtevID) {
+        PodjiSaMnomZahtev z = this.zahtevService.getZahtevByKorisnici(PosloZahtevID, PrimioZahtevID);
+        return z != null ? ResponseEntity.ok(z) : ResponseEntity.notFound().build();
+    }
+
     @PostMapping
     public ResponseEntity<PodjiSaMnomZahtev> kreirajZahtev(@RequestBody PodjiSaMnomZahtev z) {
         PodjiSaMnomZahtev noviZahtev = this.zahtevService.kreirajZahtev(z);
-        return ResponseEntity.status(HttpStatus.CREATED).body(noviZahtev);
+        return noviZahtev != null
+                ? ResponseEntity.status(HttpStatus.CREATED).body(noviZahtev)
+                : ResponseEntity.badRequest().build();
     }
 
     @PutMapping(value = "/{ID}")
     public ResponseEntity<PodjiSaMnomZahtev> azurirajZahtev(@PathVariable("ID") int ID, @RequestBody PodjiSaMnomZahtev z) {
         PodjiSaMnomZahtev azuriran = this.zahtevService.azurirajZahtev(ID, z);
+        return azuriran != null ? ResponseEntity.ok(azuriran) : ResponseEntity.badRequest().build();
+    }
+
+    @PutMapping(value = "/{ID}/status/{Status}")
+    public ResponseEntity<PodjiSaMnomZahtev> azurirajStatus(
+            @PathVariable("ID") int ID,
+            @PathVariable("Status") String Status) {
+        PodjiSaMnomZahtev azuriran = this.zahtevService.azurirajStatus(ID, Status);
         return azuriran != null ? ResponseEntity.ok(azuriran) : ResponseEntity.badRequest().build();
     }
 

@@ -18,6 +18,10 @@ public class PodjiSaMnomCetService {
 
     public List<PodjiSaMnomCet> getAllCetovi() { return this.cetRepositories.getAllCetovi(); }
     public PodjiSaMnomCet getCetById(int ID) { return this.cetRepositories.getCetById(ID); }
+    public List<PodjiSaMnomCet> getCetoviByKorisnik(int korisnikID) { return this.cetRepositories.getCetoviByKorisnik(korisnikID); }
+    public PodjiSaMnomCet getCetByPrijavaIKorisnici(int prijavaID, int posiljalacID, int primalacID) {
+        return this.cetRepositories.getCetByPrijavaIKorisnici(prijavaID, posiljalacID, primalacID);
+    }
     public PodjiSaMnomCet kreirajCet(PodjiSaMnomCet c) { return this.cetRepositories.kreirajCet(c); }
     public PodjiSaMnomCet azurirajCet(int ID, PodjiSaMnomCet c) { return this.cetRepositories.azurirajCet(ID, c); }
     public void obrisiCet(int ID) { this.cetRepositories.obrisiCet(ID); }

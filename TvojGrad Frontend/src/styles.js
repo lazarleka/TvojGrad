@@ -121,6 +121,9 @@ export const css = `
   /* INBOX */
   .inbox-thread{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid ${G.border};border-radius:12px;margin-bottom:8px;cursor:pointer;transition:all 0.15s;background:#fff}
   .inbox-thread:hover,.inbox-thread.active-thread{border-color:${G.green};background:${G.greenLight}}
+  .inbox-thread.unread-thread{border-color:${G.warning};background:#fff7e8;box-shadow:0 0 0 2px rgba(186,117,23,0.08)}
+  .inbox-thread.unread-thread .inbox-thread-name{color:${G.warning}}
+  .inbox-thread.unread-thread .inbox-thread-preview{color:${G.warning};font-weight:700}
   .inbox-thread-info{flex:1;min-width:0}
   .inbox-thread-name{font-size:14px;font-weight:600;color:${G.ink}}
   .inbox-thread-preview{font-size:12px;color:${G.muted};white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -190,6 +193,11 @@ export const css = `
   .my-event-info{flex:1}
   .my-event-title{font-size:14px;font-weight:600}
   .my-event-meta{font-size:12px;color:${G.muted};margin-top:2px}
+  .profile-event-item{align-items:center;padding:1rem 1.15rem}
+  .profile-event-item .my-event-emoji{width:44px;height:44px;border-radius:12px;background:${G.greenLight};display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .profile-event-item .my-event-title{font-size:15px;color:${G.ink};margin-bottom:8px}
+  .profile-event-meta{display:flex;gap:8px;flex-wrap:wrap}
+  .profile-event-meta span{display:inline-flex;align-items:center;border:1px solid ${G.border};background:${G.paper};color:${G.muted};border-radius:999px;padding:4px 9px;font-size:12px;line-height:1}
   .my-event-actions{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
   .promo-inline-note{font-size:11px;color:${G.muted};line-height:1.4;margin-top:6px;max-width:320px}
   .status-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;margin-top:4px}

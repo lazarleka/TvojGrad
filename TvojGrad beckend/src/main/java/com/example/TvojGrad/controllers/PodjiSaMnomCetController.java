@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@CrossOrigin(origins = "*")
 @RequestMapping(value = "/cetovi")
 public class PodjiSaMnomCetController {
 
@@ -29,10 +30,24 @@ public class PodjiSaMnomCetController {
         return c != null ? ResponseEntity.ok(c) : ResponseEntity.notFound().build();
     }
 
+    @GetMapping(value = "/korisnik/{KorisnikID}")
+    public ResponseEntity<List<PodjiSaMnomCet>> getCetoviByKorisnik(@PathVariable("KorisnikID") int KorisnikID) {
+        return ResponseEntity.ok(this.cetService.getCetoviByKorisnik(KorisnikID));
+    }
+
+    @GetMapping(value = "/prijava/{PrijavaID}/{PosiljalacID}/{PrimalacID}")
+    public ResponseEntity<PodjiSaMnomCet> getCetByPrijavaIKorisnici(
+            @PathVariable("PrijavaID") int PrijavaID,
+            @PathVariable("PosiljalacID") int PosiljalacID,
+            @PathVariable("PrimalacID") int PrimalacID) {
+        PodjiSaMnomCet c = this.cetService.getCetByPrijavaIKorisnici(PrijavaID, PosiljalacID, PrimalacID);
+        return c != null ? ResponseEntity.ok(c) : ResponseEntity.notFound().build();
+    }
+
     @PostMapping
     public ResponseEntity<PodjiSaMnomCet> kreirajCet(@RequestBody PodjiSaMnomCet c) {
         PodjiSaMnomCet noviCet = this.cetService.kreirajCet(c);
-        return ResponseEntity.status(HttpStatus.CREATED).body(noviCet);
+        return noviCet != null ? ResponseEntity.status(HttpStatus.CREATED).body(noviCet) : ResponseEntity.badRequest().build();
     }
 
     @PutMapping(value = "/{ID}")

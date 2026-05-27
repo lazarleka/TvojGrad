@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EVENTS_DATA } from "./constants";
 import { css } from "./styles";
 import { useToast } from "./hooks/useToast";
@@ -11,15 +11,67 @@ import AuthPage from "./pages/AuthPage";
 import ProfilePage from "./pages/ProfilePage";
 import OrganizerPage from "./pages/OrganizerPage";
 import AdminPage from "./pages/AdminPage";
+import { API_BASE_URL, fetchEventById, getStoredUser, getUserId } from "./api";
+import { Client } from "@stomp/stompjs";
+
+const PAGE_PATHS = {
+  home: "/",
+  popular: "/popularno",
+  favorites: "/omiljeni",
+  auth: "/prijava",
+  profile: "/profil",
+  organizer: "/organizator",
+  admin: "/admin",
+};
+
+const getEventId = (event) => event?.id ?? event?.ID;
+
+const buildPath = (page, event, opts = {}) => {
+  if (page === "detail") {
+    const id = getEventId(event);
+    return id ? `/dogadjaj/${encodeURIComponent(id)}` : PAGE_PATHS.home;
+  }
+
+  const path = PAGE_PATHS[page] || PAGE_PATHS.home;
+  if (page === "profile" && opts.profileTab) {
+    return `${path}?tab=${encodeURIComponent(opts.profileTab)}`;
+  }
+
+  return path;
+};
+
+const parseRoute = () => {
+  const { pathname, search } = window.location;
+  const params = new URLSearchParams(search);
+  const profileTab = params.get("tab") || undefined;
+  const normalizedPath = pathname.replace(/\/+$/, "") || "/";
+
+  if (normalizedPath === "/dogadjaji") return { page: "home" };
+  if (normalizedPath === "/popularno") return { page: "popular" };
+  if (normalizedPath === "/omiljeni") return { page: "favorites" };
+  if (normalizedPath === "/prijava") return { page: "auth" };
+  if (normalizedPath === "/profil") return { page: "profile", profileTab };
+  if (normalizedPath === "/organizator") return { page: "organizer" };
+  if (normalizedPath === "/admin") return { page: "admin" };
+
+  const detailMatch = normalizedPath.match(/^\/dogadjaj\/([^/]+)$/);
+  if (detailMatch) {
+    return { page: "detail", eventId: decodeURIComponent(detailMatch[1]) };
+  }
+
+  return { page: "home" };
+};
 
 export default function TvojGrad() {
-  const [page, setPage] = useState("home");
+  const [route, setRoute] = useState(parseRoute);
+  const page = route.page;
   const [profileTab, setProfileTab] = useState("favorites");
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(getStoredUser);
   const [events, setEvents] = useState(
     EVENTS_DATA.map((e) => ({ ...e, votes: { ...e.votes }, userVotes: {}, favoritesByUser: {} }))
   );
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [routeEvent, setRouteEvent] = useState(null);
   const [category, setCategory] = useState("Sve");
   const [city, setCity] = useState("Svi gradovi");
   const [search, setSearch] = useState("");
@@ -27,6 +79,7 @@ export default function TvojGrad() {
   const [psmListings, setPsmListings] = useState({});
   const [conversations, setConversations] = useState({});
   const [activeThread, setActiveThread] = useState(null);
+  const [backendUnreadCetIds, setBackendUnreadCetIds] = useState({});
   const { toasts, show: toast } = useToast();
 
   const userId = user?.email || user?.name;
@@ -36,13 +89,146 @@ export default function TvojGrad() {
   const incomingRequests = userId
     ? Object.values(psmRequests).filter((req) => req?.status === "pending" && req.target?.id === userId)
     : [];
-  const unreadCount = Object.values(userConversations).filter((c) => c.unread).length + incomingRequests.length;
+  const backendUnreadMessages = Object.keys(backendUnreadCetIds).length;
+  const unreadCount = Object.values(userConversations).filter((c) => c.unread).length + incomingRequests.length + backendUnreadMessages;
+  const backendUserId = getUserId(user);
 
   const navigate = (p, ev, opts) => {
-    setPage(p);
+    const path = buildPath(p, ev, opts);
+    window.history.pushState({}, "", path);
+    setRoute(parseRoute());
     if (ev) setSelectedEvent(ev);
     if (opts?.profileTab) setProfileTab(opts.profileTab);
     window.scrollTo(0, 0);
+  };
+
+  useEffect(() => {
+    const onPopState = () => setRoute(parseRoute());
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  useEffect(() => {
+    if (route.page === "profile" && route.profileTab) {
+      setProfileTab(route.profileTab);
+    }
+  }, [route.page, route.profileTab]);
+
+  useEffect(() => {
+    if (route.page !== "detail" || !route.eventId) {
+      setRouteEvent(null);
+      return;
+    }
+
+    fetchEventById(route.eventId)
+      .then(setRouteEvent)
+      .catch(() => setRouteEvent(null));
+  }, [route.page, route.eventId]);
+
+  useEffect(() => {
+    if (!backendUserId) {
+      setBackendUnreadCetIds({});
+      return undefined;
+    }
+
+    let client;
+    let cancelled = false;
+    const readStorageKey = `readCetMessages:${backendUserId}`;
+
+    const getReadMap = () => {
+      try {
+        return JSON.parse(localStorage.getItem(readStorageKey) || "{}");
+      } catch {
+        return {};
+      }
+    };
+
+    const saveReadMap = (map) => {
+      localStorage.setItem(readStorageKey, JSON.stringify(map));
+    };
+
+    const loadGlobalChatNotifications = async () => {
+      try {
+        const cetsResponse = await fetch(`${API_BASE_URL}/cetovi/korisnik/${backendUserId}`);
+        if (!cetsResponse.ok) return;
+        const cets = await cetsResponse.json();
+        const readMap = getReadMap();
+        const nextUnread = {};
+
+        await Promise.all((cets || []).map(async (cet) => {
+          const messagesResponse = await fetch(`${API_BASE_URL}/poruke-ceta/cet/${cet.ID}`);
+          if (!messagesResponse.ok) return;
+          const messages = await messagesResponse.json();
+          const latestMessageId = Math.max(0, ...(messages || []).map((m) => Number(m.ID || 0)));
+          const latestOtherMessageId = Math.max(
+            0,
+            ...(messages || [])
+              .filter((m) => String(m.Posiljalac_ID || m.posiljalacID) !== String(backendUserId))
+              .map((m) => Number(m.ID || 0))
+          );
+
+          if (readMap[cet.ID] == null) {
+            readMap[cet.ID] = latestMessageId;
+          } else if (latestOtherMessageId > Number(readMap[cet.ID] || 0)) {
+            nextUnread[cet.ID] = true;
+          }
+        }));
+
+        saveReadMap(readMap);
+        if (!cancelled) setBackendUnreadCetIds(nextUnread);
+
+        if (!cancelled && (cets || []).length > 0) {
+          window.global = window.global || window;
+          const { default: SockJS } = await import("sockjs-client");
+          if (cancelled) return;
+
+          client = new Client({
+            webSocketFactory: () => new SockJS(`${API_BASE_URL}/ws-tvojgrad`),
+            reconnectDelay: 3000,
+            onConnect: () => {
+              (cets || []).forEach((cet) => {
+                client.subscribe(`/topic/cet/${cet.ID}`, (message) => {
+                  const received = JSON.parse(message.body);
+                  const senderId = received.Posiljalac_ID || received.posiljalacID;
+                  if (String(senderId) !== String(backendUserId)) {
+                    setBackendUnreadCetIds((prev) => ({ ...prev, [cet.ID]: true }));
+                    toast("Stigla je nova poruka");
+                  }
+                });
+              });
+            },
+          });
+          client.activate();
+        }
+      } catch {
+        // Backend chat nije dostupan; aplikacija ostaje upotrebljiva.
+      }
+    };
+
+    loadGlobalChatNotifications();
+
+    return () => {
+      cancelled = true;
+      if (client) client.deactivate();
+    };
+  }, [backendUserId]);
+
+  const markBackendChatRead = (cetId, lastMessageId = 0) => {
+    if (!backendUserId || !cetId) return;
+    const readStorageKey = `readCetMessages:${backendUserId}`;
+    let readMap = {};
+    try {
+      readMap = JSON.parse(localStorage.getItem(readStorageKey) || "{}");
+    } catch {
+      readMap = {};
+    }
+    readMap[cetId] = Math.max(Number(readMap[cetId] || 0), Number(lastMessageId || 0));
+    localStorage.setItem(readStorageKey, JSON.stringify(readMap));
+    setBackendUnreadCetIds((prev) => {
+      const next = { ...prev };
+      delete next[cetId];
+      return next;
+    });
   };
 
   const updateUser = (nextUser) => {
@@ -347,6 +533,14 @@ export default function TvojGrad() {
 
   const popularEvents = [...eventsForCurrentUser].filter((e) => e.status === "approved").sort((a, b) => b.votes.up - a.votes.up);
   const favEvents = eventsForCurrentUser.filter((e) => e.fav);
+  const detailEvent =
+    page === "detail"
+      ? routeEvent ||
+        eventsForCurrentUser.find((e) => String(getEventId(e)) === String(route.eventId)) ||
+        (String(getEventId(selectedEvent)) === String(route.eventId) ? selectedEvent : null)
+      : null;
+  const userRole = user?.role || user?.tip || user?.Tip;
+  const userName = user?.name || user?.ime || user?.Ime;
 
   return (
     <>
@@ -380,9 +574,9 @@ export default function TvojGrad() {
         {page === "favorites" && (
           <FavoritesPage events={favEvents} navigate={navigate} vote={vote} toggleFav={toggleFav} user={user} />
         )}
-        {page === "detail" && selectedEvent && (
+        {page === "detail" && detailEvent && (
           <DetailPage
-            event={eventsForCurrentUser.find((e) => e.id === selectedEvent.id) || selectedEvent}
+            event={detailEvent}
             navigate={navigate}
             vote={vote}
             toggleFav={toggleFav}
@@ -396,6 +590,17 @@ export default function TvojGrad() {
             sendMsg={sendMsg}
             markRead={markRead}
           />
+        )}
+        {page === "detail" && !detailEvent && (
+          <div className="main">
+            <div className="empty">
+              Dogadjaj nije pronadjen.
+              <br />
+              <button className="btn-primary" style={{ marginTop: "1rem" }} onClick={() => navigate("home")}>
+                Nazad na dogadjaje
+              </button>
+            </div>
+          </div>
         )}
         {page === "auth" && <AuthPage setUser={updateUser} navigate={navigate} toast={toast} />}
         {page === "profile" && user && (
@@ -415,19 +620,21 @@ export default function TvojGrad() {
             incomingRequests={incomingRequests}
             acceptPsmRequest={acceptPsmRequest}
             rejectPsmRequest={rejectPsmRequest}
+            externalUnreadCetIds={backendUnreadCetIds}
+            onMarkChatRead={markBackendChatRead}
           />
         )}
-        {page === "organizer" && user?.role === "organizer" && (
+        {page === "organizer" && userRole === "organizator" && (
           <OrganizerPage
             user={user}
-            events={events.filter((e) => e.organizer === user.name)}
+            events={events.filter((e) => e.organizer === userName)}
             addEvent={addEvent}
             deleteEvent={deleteEvent}
             promoteEvent={promoteEvent}
             updateEventImg={updateEventImg}
           />
         )}
-        {page === "admin" && user?.role === "admin" && (
+        {page === "admin" && userRole === "administrator" && (
           <AdminPage events={events} approveEvent={approveEvent} rejectEvent={rejectEvent} deleteEvent={deleteEvent} />
         )}
 

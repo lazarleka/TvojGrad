@@ -1,41 +1,15 @@
-import { useState, useEffect } from 'react';
-import { CATEGORIES, CITIES, G } from '../constants';
-import EventCard from '../components/EventCard';
+import { useEffect, useState } from "react";
+import { CATEGORIES, CITIES, G } from "../constants";
+import EventCard from "../components/EventCard";
+import { API_BASE_URL, fetchEvents, fetchUserVote, getStoredUser, getUserId, removeLegacyVote, submitVote } from "../api";
 
-const API_BASE_URL = "http://localhost:8080";
-
-const getEmojiByCategory = (type) => {
-  switch(type?.toLowerCase()) {
-    case 'koncert': return '🎵';
-    case 'festival': return '🎪';
-    case 'sportski dogadjaj': return '⚽';
-    case 'izlozba': return '🎨';
-    case 'pozoriste': return '🎭';
-    case 'humanitarna akcija': return '❤️';
-    case 'edukacija': return '📚';
-    case 'sajam': return '🛍️';
-    case 'proslava': return '🎉';
-    default: return '📌';
-  }
-};
-
-const getColorByCategory = (type) => {
-  switch(type?.toLowerCase()) {
-    case 'koncert': return '#1D9E75';
-    case 'sportski dogadjaj': return '#3B6D11';
-    case 'izlozba': return '#533AB7';
-    case 'edukacija': return '#185FA5';
-    case 'festival': return '#BA7517';
-    default: return '#993556';
-  }
-};
-
-// Glasovi se cuvaju u localStorage kao { eventId: "up" | "down" }
 const loadVotes = () => {
   try {
     const saved = localStorage.getItem("myVotes");
     return saved ? JSON.parse(saved) : {};
-  } catch { return {}; }
+  } catch {
+    return {};
+  }
 };
 
 const saveVotes = (votes) => {
@@ -43,59 +17,38 @@ const saveVotes = (votes) => {
 };
 
 export default function HomePage({ category, setCategory, city, setCity, search, setSearch, navigate }) {
-
-  const [currentUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem("user");
-      return saved ? JSON.parse(saved) : null;
-    } catch { return null; }
-  });
-
+  const [currentUser] = useState(getStoredUser);
   const [dbEvents, setDbEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState([]);
-  // myVotes = { "123": "up", "456": "down" }
   const [myVotes, setMyVotes] = useState(loadVotes);
 
   useEffect(() => {
-    fetchEvents();
+    loadEvents();
   }, []);
 
   useEffect(() => {
-    if (currentUser?.ID || currentUser?.id) {
+    if (getUserId(currentUser)) {
       fetchFavorites();
     }
   }, [currentUser]);
 
-  const fetchEvents = async () => {
+  const loadEvents = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/dogadjaji`);
-      if (response.ok) {
-        const text = await response.text();
-        if (!text) { setDbEvents([]); return; }
-        const data = JSON.parse(text);
-        const formattedData = (data || []).map(e => ({
-          ...e,
-          id: e.ID,
-          title: e.Naslov,
-          description: e.Opis,
-          date: e.Datum,
-          time: e.Vreme,
-          city: e.Grad,
-          coverColor: getColorByCategory(e.Tip_dogadjaja),
-          emoji: e.slika_1 ? null : (e.Emoji || getEmojiByCategory(e.Tip_dogadjaja)),
-          // ISPRAVKA: status je 'promovisana' ne 'promovisan'
-          promoted: e.Status === "promovisana",
-          price: e.Cijena ,
-          votes: {
-            up: e.Upvote ?? 0,
-            down: e.Downvote ?? 0
-          }
-        }));
-        setDbEvents(formattedData);
+      const formattedData = await fetchEvents();
+      setDbEvents(formattedData);
+
+      const uid = getUserId(currentUser);
+      if (uid) {
+        const voteEntries = await Promise.all(
+          formattedData.map(async (event) => [event.id, await fetchUserVote(event.id, uid)])
+        );
+        const nextVotes = Object.fromEntries(voteEntries.filter(([, vote]) => vote));
+        setMyVotes(nextVotes);
+        saveVotes(nextVotes);
       }
     } catch (error) {
-      console.error("Greška pri učitavanju događaja:", error);
+      console.error("Greska pri ucitavanju dogadjaja:", error);
     } finally {
       setLoading(false);
     }
@@ -103,101 +56,39 @@ export default function HomePage({ category, setCategory, city, setCity, search,
 
   const fetchFavorites = async () => {
     try {
-      const uid = currentUser?.ID || currentUser?.id;
+      const uid = getUserId(currentUser);
       const response = await fetch(`${API_BASE_URL}/OmiljeniDogadjaji/${uid}`);
       if (response.ok) {
         const data = await response.json();
-        setFavorites((data || []).map(e => e.ID));
+        setFavorites((data || []).map((e) => e.ID));
       }
     } catch (error) {
-      console.error("Greška pri učitavanju omiljenih:", error);
+      console.error("Greska pri ucitavanju omiljenih:", error);
     }
   };
 
-  const handleUpvote = async (eventId) => {
-    const currentVote = myVotes[eventId];
-
-    // Ako je vec upvotovao, ne radi nista
-    if (currentVote === "up") return;
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/dogadjaji/${eventId}/upvote`, {
-        method: 'PUT'
-      });
-
-      if (response.ok) {
-        const updated = await response.json();
-
-        // Ako je bio downvote, ponisti ga na backendu
-        if (currentVote === "down") {
-          await fetch(`${API_BASE_URL}/dogadjaji/${eventId}/removedownvote`, {
-            method: 'PUT'
-          });
-        }
-
-        // Azuriraj lokalni state
-        const newVotes = { ...myVotes, [eventId]: "up" };
-        setMyVotes(newVotes);
-        saveVotes(newVotes);
-
-        setDbEvents(prev => prev.map(e =>
-          e.id === eventId
-            ? {
-                ...e,
-                votes: {
-                  up: updated.Upvote,
-                  // Ako je bio downvote, smanji i downvote lokalno
-                  down: currentVote === "down" ? (updated.Downvote - 1) : updated.Downvote
-                }
-              }
-            : e
-        ));
-      }
-    } catch (error) {
-      console.error("Greška pri upvote:", error);
+  const handleVote = async (eventId, voteType) => {
+    const uid = getUserId(currentUser);
+    if (!uid) {
+      alert("Morate biti ulogovani da biste glasali!");
+      return;
     }
-  };
+    if (myVotes[eventId] === voteType) return;
 
-  const handleDownvote = async (eventId) => {
-    const currentVote = myVotes[eventId];
-
-    // Ako je vec downvotovao, ne radi nista
-    if (currentVote === "down") return;
-
+    const previousVote = myVotes[eventId];
     try {
-      const response = await fetch(`${API_BASE_URL}/dogadjaji/${eventId}/downvote`, {
-        method: 'PUT'
-      });
-
-      if (response.ok) {
-        const updated = await response.json();
-
-        // Ako je bio upvote, ponisti ga na backendu
-        if (currentVote === "up") {
-          await fetch(`${API_BASE_URL}/dogadjaji/${eventId}/removeupvote`, {
-            method: 'PUT'
-          });
-        }
-
-        const newVotes = { ...myVotes, [eventId]: "down" };
-        setMyVotes(newVotes);
-        saveVotes(newVotes);
-
-        setDbEvents(prev => prev.map(e =>
-          e.id === eventId
-            ? {
-                ...e,
-                votes: {
-                  // Ako je bio upvote, smanji i upvote lokalno
-                  up: currentVote === "up" ? (updated.Upvote - 1) : updated.Upvote,
-                  down: updated.Downvote
-                }
-              }
-            : e
-        ));
+      const updated = await submitVote(eventId, uid, voteType);
+      let nextEvent = updated;
+      if (previousVote && previousVote !== voteType) {
+        nextEvent = await removeLegacyVote(eventId, previousVote).catch(() => updated);
       }
+      const nextVotes = { ...myVotes, [eventId]: voteType };
+      setMyVotes(nextVotes);
+      saveVotes(nextVotes);
+      setDbEvents((prev) => prev.map((e) => (e.id === eventId ? nextEvent : e)));
     } catch (error) {
-      console.error("Greška pri downvote:", error);
+      console.error("Greska pri glasanju:", error);
+      alert("Glas nije sacuvan. Provjerite da li je backend pokrenut.");
     }
   };
 
@@ -206,37 +97,37 @@ export default function HomePage({ category, setCategory, city, setCity, search,
       alert("Morate biti ulogovani da biste dodali u omiljene!");
       return;
     }
-    const uid = currentUser?.ID || currentUser?.id;
+    const uid = getUserId(currentUser);
     const isFav = favorites.includes(eventId);
 
     try {
       if (isFav) {
-        await fetch(`${API_BASE_URL}/OmiljeniDogadjaji/${uid}/${eventId}`, { method: 'DELETE' });
-        setFavorites(prev => prev.filter(id => id !== eventId));
+        await fetch(`${API_BASE_URL}/OmiljeniDogadjaji/${uid}/${eventId}`, { method: "DELETE" });
+        setFavorites((prev) => prev.filter((id) => id !== eventId));
       } else {
-        await fetch(`${API_BASE_URL}/OmiljeniDogadjaji/${uid}/${eventId}`, { method: 'POST' });
-        setFavorites(prev => [...prev, eventId]);
+        await fetch(`${API_BASE_URL}/OmiljeniDogadjaji/${uid}/${eventId}`, { method: "POST" });
+        setFavorites((prev) => [...prev, eventId]);
       }
     } catch (error) {
-      console.error("Greška pri izmjeni omiljenih:", error);
+      console.error("Greska pri izmjeni omiljenih:", error);
     }
   };
 
-  const filteredEvents = dbEvents.filter(e => {
-    const meceSearch = !search ||
-      (e.title && e.title.toLowerCase().includes(search.toLowerCase())) ||
-      (e.description && e.description.toLowerCase().includes(search.toLowerCase()));
-    const meceCity = !city || city === "Svi gradovi" || e.city === city;
-    const meceCategory = !category || category === "Sve" || e.Tip_dogadjaja === category;
-    return meceSearch && meceCity && meceCategory;
+  const filteredEvents = dbEvents.filter((e) => {
+    const matchesSearch = !search ||
+      e.title?.toLowerCase().includes(search.toLowerCase()) ||
+      e.description?.toLowerCase().includes(search.toLowerCase());
+    const matchesCity = !city || city === "Svi gradovi" || e.city === city;
+    const matchesCategory = !category || category === "Sve" || e.Tip_dogadjaja === category || e.category === category;
+    return matchesSearch && matchesCity && matchesCategory;
   });
 
-  const promotedEvents = dbEvents.filter(e => e.promoted);
+  const promotedEvents = dbEvents.filter((e) => e.promoted);
 
   if (loading) {
     return (
       <div className="main">
-        <div className="empty">Učitavanje događaja...</div>
+        <div className="empty">Ucitavanje dogadjaja...</div>
       </div>
     );
   }
@@ -244,29 +135,29 @@ export default function HomePage({ category, setCategory, city, setCity, search,
   return (
     <>
       <div className="hero">
-        <h1 className="hero-title">Tvoj grad,<br /><em>tvoja dešavanja</em></h1>
-        <p className="hero-sub">Svi događaji u jednom mjestu. Pronađi, prati i pođi zajedno!</p>
+        <h1 className="hero-title">Tvoj grad,<br /><em>tvoja desavanja</em></h1>
+        <p className="hero-sub">Svi dogadjaji u jednom mjestu. Pronadji, prati i podji zajedno!</p>
         <div className="search-wrap">
           <input
-            style={{flex:1,border:"none",outline:"none",fontSize:15,fontFamily:"'DM Sans',sans-serif",background:"transparent"}}
-            placeholder="Pretraži događaje..."
+            style={{ flex: 1, border: "none", outline: "none", fontSize: 15, fontFamily: "'DM Sans',sans-serif", background: "transparent" }}
+            placeholder="Pretrazi dogadjaje..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
           />
           <select
-            style={{border:"none",outline:"none",fontSize:13,fontFamily:"'DM Sans',sans-serif",color:G.muted,background:"transparent",cursor:"pointer"}}
+            style={{ border: "none", outline: "none", fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: G.muted, background: "transparent", cursor: "pointer" }}
             value={city}
-            onChange={e => setCity(e.target.value)}
+            onChange={(e) => setCity(e.target.value)}
           >
-            {CITIES.map(c => <option key={c}>{c}</option>)}
+            {CITIES.map((c) => <option key={c}>{c}</option>)}
           </select>
-          <button style={{background:G.green,color:"#fff",border:"none",borderRadius:10,padding:"10px 20px",fontSize:14,fontFamily:"'DM Sans',sans-serif",cursor:"pointer",fontWeight:500}}>
-            Pretraži
+          <button style={{ background: G.green, color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 14, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", fontWeight: 500 }}>
+            Pretrazi
           </button>
         </div>
         <div className="filter-chips">
-          {CATEGORIES.map(c => (
-            <span key={c} className={`chip${category===c?" active":""}`} onClick={() => setCategory(c)}>{c}</span>
+          {CATEGORIES.map((c) => (
+            <span key={c} className={`chip${category === c ? " active" : ""}`} onClick={() => setCategory(c)}>{c}</span>
           ))}
         </div>
       </div>
@@ -275,17 +166,17 @@ export default function HomePage({ category, setCategory, city, setCity, search,
         {promotedEvents.length > 0 && (
           <>
             <div className="section-header">
-              <span className="section-title">⭐ Promovisano</span>
+              <span className="section-title">Promovisano</span>
             </div>
             <div className="grid">
-              {promotedEvents.slice(0, 3).map(e => (
+              {promotedEvents.slice(0, 3).map((e) => (
                 <EventCard
                   key={e.id}
                   event={e}
                   isFav={favorites.includes(e.id)}
                   myVote={myVotes[e.id]}
-                  onUpvote={handleUpvote}
-                  onDownvote={handleDownvote}
+                  onUpvote={(id) => handleVote(id, "up")}
+                  onDownvote={(id) => handleVote(id, "down")}
                   toggleFav={handleToggleFav}
                   navigate={navigate}
                 />
@@ -296,19 +187,19 @@ export default function HomePage({ category, setCategory, city, setCity, search,
         )}
 
         <div className="section-header">
-          <span className="section-title">🗓 Svi događaji</span>
-          <span className="section-sub">{filteredEvents.length} događaja</span>
+          <span className="section-title">Svi dogadjaji</span>
+          <span className="section-sub">{filteredEvents.length} dogadjaja</span>
         </div>
         {filteredEvents.length > 0 ? (
           <div className="grid">
-            {filteredEvents.map(e => (
+            {filteredEvents.map((e) => (
               <EventCard
                 key={e.id}
                 event={e}
                 isFav={favorites.includes(e.id)}
                 myVote={myVotes[e.id]}
-                onUpvote={handleUpvote}
-                onDownvote={handleDownvote}
+                onUpvote={(id) => handleVote(id, "up")}
+                onDownvote={(id) => handleVote(id, "down")}
                 toggleFav={handleToggleFav}
                 navigate={navigate}
               />
@@ -316,8 +207,8 @@ export default function HomePage({ category, setCategory, city, setCity, search,
           </div>
         ) : (
           <div className="empty">
-            <span className="empty-icon">😕</span>
-            Nema događaja koji odgovaraju filterima.
+            <span className="empty-icon">:(</span>
+            Nema dogadjaja koji odgovaraju filterima.
           </div>
         )}
       </div>

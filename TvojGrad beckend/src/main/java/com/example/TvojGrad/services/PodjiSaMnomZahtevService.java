@@ -17,7 +17,11 @@ public class PodjiSaMnomZahtevService {
 
     public List<PodjiSaMnomZahtev> getAllZahtevi() { return this.zahtevRepositories.getAllZahtevi(); }
     public PodjiSaMnomZahtev getZahtevById(int ID) { return this.zahtevRepositories.getZahtevById(ID); }
+    public PodjiSaMnomZahtev getZahtevByKorisnici(int posloZahtevID, int primioZahtevID) {
+        return this.zahtevRepositories.getZahtevByKorisnici(posloZahtevID, primioZahtevID);
+    }
     public PodjiSaMnomZahtev kreirajZahtev(PodjiSaMnomZahtev z) { return this.zahtevRepositories.kreirajZahtev(z); }
     public PodjiSaMnomZahtev azurirajZahtev(int ID, PodjiSaMnomZahtev z) { return this.zahtevRepositories.azurirajZahtev(ID, z); }
+    public PodjiSaMnomZahtev azurirajStatus(int ID, String status) { return this.zahtevRepositories.azurirajStatus(ID, status); }
     public void obrisiZahtev(int ID) { this.zahtevRepositories.obrisiZahtev(ID); }
 }

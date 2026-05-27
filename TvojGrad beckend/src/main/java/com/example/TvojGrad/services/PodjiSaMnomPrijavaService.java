@@ -19,6 +19,9 @@ public class PodjiSaMnomPrijavaService {
     public PodjiSaMnomPrijava getPrijavaById(int ID) { return this.prijavaRepositories.getPrijavaById(ID); }
     public List<PodjiSaMnomPrijava> getPrijaveByObjava(int ObjavaID) { return this.prijavaRepositories.getPrijaveByObjava(ObjavaID); }
     public PodjiSaMnomPrijava kreirajPrijavu(PodjiSaMnomPrijava p) { return this.prijavaRepositories.kreirajPrijavu(p); }
+    public PodjiSaMnomPrijava kreirajPrijavu(String tekst, String status, int korisnikID, int objavaID) {
+        return this.prijavaRepositories.kreirajPrijavu(tekst, status, korisnikID, objavaID);
+    }
     public PodjiSaMnomPrijava azurirajPrijavu(int ID, PodjiSaMnomPrijava p) { return this.prijavaRepositories.azurirajPrijavu(ID, p); }
     public void obrisiPrijavu(int ID) { this.prijavaRepositories.obrisiPrijavu(ID); }
 }

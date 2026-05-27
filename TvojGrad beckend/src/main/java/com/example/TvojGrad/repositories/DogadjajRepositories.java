@@ -31,6 +31,53 @@ public class DogadjajRepositories {
         );
     }
 
+    private Dogadjaj getDogadjajById(Connection conn, int ID) throws SQLException {
+        String sql = "SELECT * FROM objava WHERE ID=?";
+        PreparedStatement ps = conn.prepareStatement(sql);
+        ps.setInt(1, ID);
+        ResultSet rs = ps.executeQuery();
+        return rs.next() ? mapRow(rs) : new Dogadjaj();
+    }
+
+    private boolean voteExists(Connection conn, String tableName, int dogadjajID, int korisnikID) throws SQLException {
+        String sql = "SELECT 1 FROM " + tableName + " WHERE ID_Dogadjaja=? AND ID_Korisnika=? LIMIT 1";
+        PreparedStatement ps = conn.prepareStatement(sql);
+        ps.setInt(1, dogadjajID);
+        ps.setInt(2, korisnikID);
+        ResultSet rs = ps.executeQuery();
+        return rs.next();
+    }
+
+    private void deleteVote(Connection conn, String tableName, int dogadjajID, int korisnikID) throws SQLException {
+        String sql = "DELETE FROM " + tableName + " WHERE ID_Dogadjaja=? AND ID_Korisnika=?";
+        PreparedStatement ps = conn.prepareStatement(sql);
+        ps.setInt(1, dogadjajID);
+        ps.setInt(2, korisnikID);
+        ps.executeUpdate();
+    }
+
+    private void insertVote(Connection conn, String tableName, int dogadjajID, int korisnikID) throws SQLException {
+        String sql = "INSERT INTO " + tableName + " (ID, ID_Dogadjaja, ID_Korisnika) " +
+                "SELECT COALESCE(MAX(ID), 0) + 1, ?, ? FROM " + tableName;
+        PreparedStatement ps = conn.prepareStatement(sql);
+        ps.setInt(1, dogadjajID);
+        ps.setInt(2, korisnikID);
+        ps.executeUpdate();
+    }
+
+    private Dogadjaj syncVoteCounts(Connection conn, int dogadjajID) throws SQLException {
+        String sql = "UPDATE objava SET " +
+                "Upvote = (SELECT COUNT(*) FROM upvote WHERE ID_Dogadjaja=?), " +
+                "Downvote = (SELECT COUNT(*) FROM downvote WHERE ID_Dogadjaja=?) " +
+                "WHERE ID=?";
+        PreparedStatement ps = conn.prepareStatement(sql);
+        ps.setInt(1, dogadjajID);
+        ps.setInt(2, dogadjajID);
+        ps.setInt(3, dogadjajID);
+        ps.executeUpdate();
+        return getDogadjajById(conn, dogadjajID);
+    }
+
     public List<Dogadjaj> getAllDogadjaji() {
         Connection conn = null;
         List<Dogadjaj> result = null;
@@ -62,16 +109,7 @@ public class DogadjajRepositories {
 
         try {
             conn = DBUtil.open();
-            String sql = "SELECT * FROM objava WHERE ID=?";
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setInt(1, ID);
-            ResultSet rs = ps.executeQuery();
-
-            if (rs.next()) {
-                return mapRow(rs);
-            } else {
-                return new Dogadjaj();
-            }
+            return getDogadjajById(conn, ID);
         } catch (SQLException e) {
             System.out.println(e);
             return null;
@@ -252,6 +290,87 @@ public class DogadjajRepositories {
             return null;
         } finally {
             if (conn != null) { try { conn.close(); } catch (Exception ex) { System.out.println(ex); } }
+        }
+    }
+
+    public Dogadjaj glasaj(int dogadjajID, int korisnikID, String tipGlasa) {
+        Connection conn = null;
+
+        String targetTable = "up".equals(tipGlasa) ? "upvote" : "downvote";
+        String oppositeTable = "up".equals(tipGlasa) ? "downvote" : "upvote";
+
+        try {
+            conn = DBUtil.open();
+            conn.setAutoCommit(false);
+
+            deleteVote(conn, oppositeTable, dogadjajID, korisnikID);
+            if (!voteExists(conn, targetTable, dogadjajID, korisnikID)) {
+                insertVote(conn, targetTable, dogadjajID, korisnikID);
+            }
+
+            Dogadjaj updated = syncVoteCounts(conn, dogadjajID);
+            conn.commit();
+            return updated;
+        } catch (SQLException s) {
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ex) { System.out.println(ex); }
+            }
+            System.out.println(s);
+            return null;
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (Exception ex) { System.out.println(ex); }
+            }
+        }
+    }
+
+    public Dogadjaj ukloniGlas(int dogadjajID, int korisnikID) {
+        Connection conn = null;
+
+        try {
+            conn = DBUtil.open();
+            conn.setAutoCommit(false);
+
+            deleteVote(conn, "upvote", dogadjajID, korisnikID);
+            deleteVote(conn, "downvote", dogadjajID, korisnikID);
+
+            Dogadjaj updated = syncVoteCounts(conn, dogadjajID);
+            conn.commit();
+            return updated;
+        } catch (SQLException s) {
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ex) { System.out.println(ex); }
+            }
+            System.out.println(s);
+            return null;
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (Exception ex) { System.out.println(ex); }
+            }
+        }
+    }
+
+    public String getGlas(int dogadjajID, int korisnikID) {
+        Connection conn = null;
+
+        try {
+            conn = DBUtil.open();
+            if (voteExists(conn, "upvote", dogadjajID, korisnikID)) return "up";
+            if (voteExists(conn, "downvote", dogadjajID, korisnikID)) return "down";
+            return null;
+        } catch (SQLException s) {
+            System.out.println(s);
+            return null;
+        } finally {
+            if (conn != null) {
+                try { conn.close(); } catch (Exception ex) { System.out.println(ex); }
+            }
         }
     }
 }

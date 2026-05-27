@@ -1,45 +1,264 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { G } from "../constants";
+import { API_BASE_URL, fetchUserVote, getStoredUser, getUserId, removeLegacyVote, submitVote } from "../api";
 
-export default function DetailPage({
-  event: e,
-  navigate,
-  vote,
-  toggleFav,
-  user,
-  toast,
-  psmRequests,
-  psmListings,
-  toggleLookingForCompany,
-  sendPsmRequest,
-  conversations,
-  sendMsg,
-  markRead,
-}) {
-  const [psmOpen, setPsmOpen] = useState(false);
-  const [openThreadId, setOpenThreadId] = useState(null);
-  const [msgInput, setMsgInput] = useState("");
-  const msgsRef = useRef();
+export default function DetailPage({ event: e, navigate, toast }) {
+  const [currentUser] = useState(getStoredUser);
+  const [isFav, setIsFav] = useState(false);
+  const [myVote, setMyVote] = useState(null);
+  const [event, setEvent] = useState(e);
+  const [psmText, setPsmText] = useState("");
+  const [psmPrijave, setPsmPrijave] = useState([]);
+  const [psmLoading, setPsmLoading] = useState(false);
+  const [sentPsmRequests, setSentPsmRequests] = useState({});
+
+  const isLoggedIn = Boolean(currentUser);
+  const uid = getUserId(currentUser);
+  const eventId = event?.id || event?.ID;
 
   useEffect(() => {
-    if (msgsRef.current) msgsRef.current.scrollTop = msgsRef.current.scrollHeight;
-  }, [openThreadId, conversations]);
+    setEvent(e);
+  }, [e]);
 
-  const currentUserId = user?.email || user?.name;
-  const getKey = (u) => `${e.id}_${currentUserId || "guest"}_${u.id}`;
-  const getStatus = (u) => {
-    const request = psmRequests[getKey(u)];
-    return request?.status || request;
-  };
-  const listedUsers = psmListings[e.id] || [];
-  const isLookingForCompany = Boolean(currentUserId && (psmListings[e.id] || []).some((u) => u.id === currentUserId));
-  const acceptedUsers = listedUsers.filter((u) => getStatus(u) === "accepted");
+  useEffect(() => {
+    if (!uid || !eventId) return;
 
-  const handleSend = () => {
-    if (!openThreadId || !msgInput.trim()) return;
-    sendMsg(openThreadId, msgInput);
-    setMsgInput("");
+    fetch(`${API_BASE_URL}/OmiljeniDogadjaji/${uid}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setIsFav((data || []).some((fav) => fav.ID === eventId)))
+      .catch(() => {});
+
+    fetchUserVote(eventId, uid).then(setMyVote).catch(() => {});
+  }, [uid, eventId]);
+
+  useEffect(() => {
+    if (!eventId) return;
+    loadPsmPrijave();
+  }, [eventId]);
+
+  useEffect(() => {
+    if (!uid) {
+      setSentPsmRequests({});
+      return;
+    }
+    loadSentPsmRequests();
+  }, [uid]);
+
+  const loadPsmPrijave = async () => {
+    setPsmLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/prijave/objava/${eventId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setPsmPrijave(data || []);
+      }
+    } catch (err) {
+      setPsmPrijave([]);
+    } finally {
+      setPsmLoading(false);
+    }
   };
+
+  const loadSentPsmRequests = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/zahtevi`);
+      if (!response.ok) return;
+      const data = await response.json();
+      const sent = {};
+      (data || []).forEach((zahtev) => {
+        const senderId = getUserId(zahtev.PosloZahtev || zahtev.posloZahtev);
+        const receiverId = zahtev.PrimioZahtev || zahtev.primioZahtev;
+        if (String(senderId) === String(uid) && receiverId) {
+          sent[String(receiverId)] = true;
+        }
+      });
+      setSentPsmRequests(sent);
+    } catch {
+      setSentPsmRequests({});
+    }
+  };
+
+  if (!event) {
+    return (
+      <div className="main">
+        <div className="empty">Dogadjaj nije pronadjen.</div>
+        <button className="detail-back" onClick={() => navigate("home")}>Nazad</button>
+      </div>
+    );
+  }
+
+  const title = event.title || event.Naslov;
+  const opis = event.description || event.desc || event.Opis;
+  const datum = event.date || event.Datum;
+  const vreme = event.time || event.Vreme;
+  const grad = event.city || event.Grad;
+  const tip = event.Tip_dogadjaja || event.category;
+  const emoji = event.emoji || event.Emoji || "📌";
+  const coverColor = event.coverColor || "#1D9E75";
+  const price = event.price ?? event.Cijena;
+  const votes = event.votes || { up: event.Upvote ?? 0, down: event.Downvote ?? 0 };
+
+  const handleVote = async (voteType) => {
+    if (!isLoggedIn || !uid) {
+      toast && toast("Prijavite se da biste glasali!");
+      return;
+    }
+    if (myVote === voteType) return;
+
+    const previousVote = myVote;
+    try {
+      const updated = await submitVote(eventId, uid, voteType);
+      let nextEvent = updated;
+      if (previousVote && previousVote !== voteType) {
+        nextEvent = await removeLegacyVote(eventId, previousVote).catch(() => updated);
+      }
+      setEvent(nextEvent);
+      setMyVote(voteType);
+      toast && toast(voteType === "up" ? "Glasali ste!" : "Reagovali ste");
+    } catch (err) {
+      console.error(err);
+      toast && toast("Glas nije sacuvan.");
+    }
+  };
+
+  const handleToggleFav = async () => {
+    if (!isLoggedIn || !uid) {
+      toast && toast("Prijavite se da biste dodali u omiljene!");
+      return;
+    }
+
+    try {
+      if (isFav) {
+        await fetch(`${API_BASE_URL}/OmiljeniDogadjaji/${uid}/${eventId}`, { method: "DELETE" });
+        setIsFav(false);
+        toast && toast("Uklonjeno iz omiljenih.");
+      } else {
+        await fetch(`${API_BASE_URL}/OmiljeniDogadjaji/${uid}/${eventId}`, { method: "POST" });
+        setIsFav(true);
+        toast && toast("Dodato u omiljene!");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCreatePsmPrijava = async () => {
+    if (!isLoggedIn || !uid) {
+      toast && toast("Prijavite se da biste trazili drustvo.");
+      return;
+    }
+    if (eventPsmClosed) {
+      toast && toast("Prijave za ovaj dogadjaj su zatvorene.");
+      return;
+    }
+    if (!psmText.trim()) {
+      toast && toast("Unesite poruku za prijavu.");
+      return;
+    }
+
+    const alreadyApplied = psmPrijave.some((p) => String(p.Korisnik_ID || p.korisnik_ID || getUserId(p.Korisnik || p.korisnik)) === String(uid));
+    if (alreadyApplied) {
+      toast && toast("Vec ste se prijavili za ovaj dogadjaj.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/prijave/${uid}/${eventId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          Tekst: psmText.trim(),
+          Status: "otvoren",
+        }),
+      });
+
+      if (!response.ok) {
+        const fallbackResponse = await fetch(`${API_BASE_URL}/prijave`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            Tekst: psmText.trim(),
+            Status: "otvoren",
+            Korisnik: { ID: uid, id: uid },
+            Objava_ID: eventId,
+          }),
+        });
+        if (!fallbackResponse.ok) {
+          const errorText = await fallbackResponse.text();
+          throw new Error(errorText || "Prijava nije sacuvana");
+        }
+      }
+      setPsmText("");
+      await loadPsmPrijave();
+      toast && toast("Dodati ste u listu za 'Podji sa mnom'.");
+    } catch (err) {
+      console.error(err);
+      toast && toast("Prijava nije sacuvana.");
+    }
+  };
+
+  const handleSendPsmZahtev = async (targetUser, prijavaID, targetIdOverride) => {
+    if (!isLoggedIn || !uid) {
+      toast && toast("Prijavite se da biste poslali zahtjev.");
+      return;
+    }
+
+    const targetId = targetIdOverride || getUserId(targetUser);
+    if (!targetId) {
+      toast && toast("Korisnik nije pronadjen.");
+      return;
+    }
+    if (String(targetId) === String(uid)) {
+      toast && toast("Ne mozete poslati zahtjev sebi.");
+      return;
+    }
+    if (sentPsmRequests[String(targetId)]) {
+      toast && toast("Zahtjev je vec poslat.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/zahtevi`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "na cekanju",
+          PosloZahtev: { ID: uid },
+          PrimioZahtev: targetId,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Zahtjev nije poslat");
+      await fetch(`${API_BASE_URL}/cetovi`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          Prijava_ID: prijavaID,
+          Posiljalac: { ID: uid },
+          Primalac_ID: targetId,
+          Rejting_1: null,
+          Rejting_2: null,
+        }),
+      }).catch(() => {});
+      setSentPsmRequests((prev) => ({ ...prev, [String(targetId)]: true }));
+      toast && toast("Zahtjev je poslat.");
+    } catch (err) {
+      console.error(err);
+      toast && toast("Zahtjev nije poslat.");
+    }
+  };
+
+  const psmApplicants = psmPrijave.map((prijava) => ({
+    prijava,
+    korisnik: prijava.Korisnik || prijava.korisnik,
+  }));
+  const getPrijavaUserId = (prijava, korisnik) => prijava?.Korisnik_ID || prijava?.korisnik_ID || getUserId(korisnik);
+  const currentUserApplied = psmApplicants.some(({ prijava, korisnik }) => String(getPrijavaUserId(prijava, korisnik)) === String(uid));
+  const isClosedStatus = (status) => {
+    const value = (status || "").toLowerCase();
+    return ["otkazana", "otkazan", "zatvorena", "zatvoren", "popunjen", "popunjena"].some((locked) => value.includes(locked));
+  };
+  const eventPsmClosed = isClosedStatus(event.Status || event.status);
 
   return (
     <div className="main">
@@ -48,45 +267,32 @@ export default function DetailPage({
       </button>
 
       <div className="detail-hero">
-        {e.coverImg ? (
-          <img src={e.coverImg} alt={e.title} className="detail-hero-img" />
+        {event.coverImg ? (
+          <img src={event.coverImg} alt={title} className="detail-hero-img" />
         ) : (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              background: `linear-gradient(135deg,${G.greenDark},${e.coverColor || G.green})`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 80,
-            }}
-          >
-            {e.emoji}
+          <div style={{
+            position: "absolute", inset: 0,
+            background: `linear-gradient(135deg, ${G.greenDark}, ${coverColor})`,
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 80,
+          }}>
+            {emoji}
           </div>
         )}
         <div className="detail-hero-overlay" />
         <div className="detail-hero-content">
-          <span className="detail-cat">{e.category}</span>
-          <div className="detail-title">{e.title}</div>
+          <span className="detail-cat">{tip}</span>
+          <div className="detail-title">{title}</div>
           <div className="detail-hero-meta">
-            <span>{new Date(e.date).toLocaleDateString("sr-Latn", { day: "numeric", month: "long", year: "numeric" })}</span>
-            <span>{e.time}</span>
-            <span>{e.location}, {e.city}</span>
+            <span>{datum ? new Date(datum).toLocaleDateString("sr-Latn", { day: "numeric", month: "long", year: "numeric" }) : "/"}</span>
+            <span>{vreme || "/"}</span>
+            <span>{grad || "/"}</span>
           </div>
-          {e.promoted && (
-            <span
-              style={{
-                marginTop: 8,
-                display: "inline-block",
-                background: "rgba(255,255,255,0.2)",
-                color: "#fff",
-                padding: "4px 14px",
-                borderRadius: 10,
-                fontSize: 12,
-                fontWeight: 600,
-              }}
-            >
+          {event.promoted && (
+            <span style={{
+              marginTop: 8, display: "inline-block",
+              background: "rgba(255,255,255,0.2)", color: "#fff",
+              padding: "4px 14px", borderRadius: 10, fontSize: 12, fontWeight: 600,
+            }}>
               Promovisano
             </span>
           )}
@@ -97,121 +303,131 @@ export default function DetailPage({
         <div>
           <div className="detail-card">
             <h3>O dogadjaju</h3>
-            <p style={{ fontSize: 14, color: G.muted, lineHeight: 1.7 }}>{e.desc}</p>
+            <p style={{ fontSize: 14, color: G.muted, lineHeight: 1.7 }}>
+              {opis || "Nema opisa za ovaj dogadjaj."}
+            </p>
           </div>
 
-          <div className="detail-card psm-card">
-            <div className="detail-card-head">
-              <div>
-                <h3>Podji sa mnom</h3>
-                <p>
-                  Objavite da trazite drustvo ili posaljite zahtjev ljudima koji su zainteresovani. Chat se otvara tek
-                  kada druga osoba prihvati zahtjev.
-                </p>
-              </div>
-              <span className="psm-count">{listedUsers.length}</span>
-            </div>
-            <button
-              className={isLookingForCompany ? "btn-outline" : "btn-primary"}
-              onClick={() => toggleLookingForCompany(e.id)}
-            >
-              {isLookingForCompany ? "Ukloni me iz liste" : "Trazim nekoga da ide sa mnom"}
-            </button>
-            <button
-              className="btn-outline"
-              onClick={() => {
-                if (!user) {
-                  toast("Prijavite se da biste koristili ovu funkciju!");
-                  return;
+          <div className="detail-card" style={{ marginTop: 16 }}>
+            <h3>Podji sa mnom</h3>
+            <p style={{ fontSize: 14, color: G.muted, lineHeight: 1.6, marginTop: 0 }}>
+              Prijavi se ako trazis drustvo za ovaj dogadjaj ili posalji zahtjev nekome ko se vec prijavio.
+            </p>
+
+            {isLoggedIn ? (
+              <div style={{ display: "grid", gap: 10, marginBottom: 16 }}>
+                <textarea
+                  value={psmText}
+                  onChange={(ev) => setPsmText(ev.target.value)}
+                disabled={currentUserApplied || eventPsmClosed}
+                placeholder={
+                  eventPsmClosed
+                    ? "Prijave za ovaj dogadjaj su zatvorene."
+                    : currentUserApplied
+                      ? "Vec ste u listi za ovaj dogadjaj."
+                      : "Npr. Idem iz Podgorice, trazim drustvo za koncert..."
                 }
-                setPsmOpen((o) => !o);
-              }}
-            >
-              {psmOpen ? "Sakrij zainteresovane" : "Vidi zainteresovane"}
-            </button>
-
-            {psmOpen && (
-              <div style={{ marginTop: "1rem" }}>
-                {listedUsers.length === 0 && (
-                  <div className="psm-empty">Jos niko nije objavio da trazi drustvo za ovaj dogadjaj.</div>
-                )}
-                {listedUsers.map((u) => {
-                  const status = getStatus(u);
-                  const threadId = getKey(u);
-                  const isOpen = openThreadId === threadId;
-                  const isMe = Boolean(currentUserId && u.id === currentUserId);
-                  return (
-                    <div key={u.id}>
-                      <div className="psm-user">
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <div className="avatar">{u.initials}</div>
-                          <div>
-                            <div style={{ fontSize: 14, fontWeight: 600 }}>{u.name}</div>
-                            <div style={{ fontSize: 11, color: G.muted }}>
-                              {isMe ? "Vi trazite drustvo za ovaj dogadjaj" : "Zainteresovan/a za ovaj dogadjaj"}
-                            </div>
-                          </div>
-                        </div>
-                        {isMe && <span className="psm-status-accepted">Na listi</span>}
-                        {!isMe && !status && (
-                          <button className="btn-primary btn-sm" onClick={() => sendPsmRequest(e.id, u)}>
-                            Posalji zahtjev
-                          </button>
-                        )}
-                        {status === "pending" && <span className="psm-status-sent">Zahtjev poslan - ceka se odgovor</span>}
-                        {status === "rejected" && <span className="psm-status-rejected">Zahtjev odbijen</span>}
-                        {status === "accepted" && (
-                          <button
-                            className="btn-outline btn-sm"
-                            onClick={() => {
-                              setOpenThreadId(isOpen ? null : threadId);
-                              if (!isOpen) markRead(threadId);
-                            }}
-                          >
-                            {isOpen ? "Zatvori chat" : "Otvori chat"}
-                          </button>
-                        )}
-                      </div>
-                      {status === "accepted" && isOpen && (
-                        <div className="chat-box" style={{ marginBottom: 8 }}>
-                          <div className="chat-header">
-                            <span className="chat-header-name">{u.name} je prihvatio/la zahtjev</span>
-                          </div>
-                          <div className="chat-msgs" ref={msgsRef}>
-                            {(conversations[threadId]?.msgs || []).map((m, i) => (
-                              <div key={i} className={`chat-msg${m.from === user?.name ? " me" : ""}`}>
-                                {m.from !== user?.name && <div className="chat-msg-sender">{m.from}</div>}
-                                {m.text}
-                              </div>
-                            ))}
-                          </div>
-                          <div className="chat-input-row">
-                            <input
-                              value={msgInput}
-                              onChange={(ev) => setMsgInput(ev.target.value)}
-                              onKeyDown={(ev) => ev.key === "Enter" && handleSend()}
-                              placeholder="Napisi poruku..."
-                            />
-                            <button className="chat-send" onClick={handleSend}>
-                              Posalji
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                  rows={3}
+                  style={{
+                    width: "100%",
+                    resize: "vertical",
+                    border: "1px solid #eee",
+                    borderRadius: 10,
+                    padding: 12,
+                    fontFamily: "inherit",
+                    fontSize: 14,
+                    outline: "none",
+                  }}
+                />
+                <button
+                  onClick={handleCreatePsmPrijava}
+                  disabled={currentUserApplied || eventPsmClosed}
+                  style={{
+                    width: "100%",
+                    padding: "10px 16px",
+                    borderRadius: 10,
+                    border: "none",
+                    background: currentUserApplied || eventPsmClosed ? "#d7dedb" : G.green,
+                    color: currentUserApplied || eventPsmClosed ? G.muted : "#fff",
+                    cursor: currentUserApplied || eventPsmClosed ? "not-allowed" : "pointer",
+                    fontWeight: 700,
+                  }}
+                >
+                  {eventPsmClosed ? "Prijave zatvorene" : currentUserApplied ? "Vec ste prijavljeni" : "Dodaj me u listu"}
+                </button>
+              </div>
+            ) : (
+              <div style={{ fontSize: 13, color: G.muted, marginBottom: 16 }}>
+                <span style={{ color: G.green, cursor: "pointer", fontWeight: 700 }} onClick={() => navigate("auth")}>
+                  Prijavite se
+                </span> da biste se prijavili ili poslali zahtjev.
               </div>
             )}
 
-            {acceptedUsers.length > 0 && !psmOpen && (
-              <p style={{ fontSize: 12, color: G.green, marginTop: "0.5rem", fontWeight: 500 }}>
-                Imate {acceptedUsers.length} prihvacen/ih zahtjev/a -{" "}
-                <span style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => setPsmOpen(true)}>
-                  vidi razgovore
-                </span>
-              </p>
-            )}
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                <thead>
+                  <tr style={{ textAlign: "left", color: G.muted, borderBottom: "1px solid #eee" }}>
+                    <th style={{ padding: "10px 8px" }}>Osoba</th>
+                    <th style={{ padding: "10px 8px" }}>Poruka</th>
+                    <th style={{ padding: "10px 8px" }}>Status</th>
+                    <th style={{ padding: "10px 8px" }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {psmLoading ? (
+                    <tr>
+                      <td colSpan="4" style={{ padding: 12, color: G.muted }}>Ucitavanje prijava...</td>
+                    </tr>
+                  ) : psmApplicants.length > 0 ? (
+                    psmApplicants.map(({ prijava, korisnik }) => {
+                      const applicantId = getPrijavaUserId(prijava, korisnik);
+                      const requestSent = Boolean(sentPsmRequests[String(applicantId)]);
+                      const applicantClosed = isClosedStatus(prijava.Status || prijava.status);
+                      const fullName = `${korisnik?.Ime || korisnik?.ime || ""} ${korisnik?.Prezime || korisnik?.prezime || ""}`.trim() || korisnik?.Email || (applicantId ? `Korisnik #${applicantId}` : "Korisnik");
+                      const canSendRequest = isLoggedIn && String(applicantId) !== String(uid) && !applicantClosed;
+                      return (
+                        <tr key={prijava.ID} style={{ borderBottom: "1px solid #f1f1f1" }}>
+                          <td style={{ padding: "12px 8px", fontWeight: 700 }}>{fullName}</td>
+                          <td style={{ padding: "12px 8px", color: G.muted }}>{prijava.Tekst || "/"}</td>
+                          <td style={{ padding: "12px 8px" }}>{prijava.Status || "/"}</td>
+                          <td style={{ padding: "12px 8px", textAlign: "right" }}>
+                            {canSendRequest ? (
+                              <button
+                                onClick={() => handleSendPsmZahtev(korisnik, prijava.ID, applicantId)}
+                                disabled={requestSent}
+                                style={{
+                                  border: requestSent ? "1px solid #d7dedb" : `1px solid ${G.green}`,
+                                  background: requestSent ? "#f3f6f5" : "#fff",
+                                  color: requestSent ? G.muted : G.green,
+                                  borderRadius: 10,
+                                  padding: "8px 10px",
+                                  cursor: requestSent ? "not-allowed" : "pointer",
+                                  fontWeight: 700,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {requestSent ? "Zahtjev poslat" : "Posalji zahtjev"}
+                              </button>
+                            ) : (
+                              <span style={{ color: G.muted, fontSize: 13 }}>
+                                {String(applicantId) === String(uid) ? "Vi" : applicantClosed ? "Nije dostupno" : ""}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan="4" style={{ padding: 12, color: G.muted }}>
+                        Jos nema prijavljenih osoba za ovaj dogadjaj.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -219,14 +435,11 @@ export default function DetailPage({
           <div className="detail-card">
             <h3>Detalji</h3>
             {[
-              {
-                label: "Datum",
-                value: new Date(e.date).toLocaleDateString("sr-Latn", { day: "numeric", month: "long", year: "numeric" }),
-              },
-              { label: "Vrijeme", value: e.time },
-              { label: "Lokacija", value: `${e.location}, ${e.city}` },
-              { label: "Cijena", value: e.price === 0 ? "Besplatno" : `${e.price} EUR` },
-              { label: "Organizator", value: e.organizer },
+              { label: "Datum", value: datum ? new Date(datum).toLocaleDateString("sr-Latn", { day: "numeric", month: "long", year: "numeric" }) : "/" },
+              { label: "Vrijeme", value: vreme || "/" },
+              { label: "Grad", value: grad || "/" },
+              { label: "Tip dogadjaja", value: tip || "/" },
+              { label: "Cijena", value: price == null || price === 0 ? "Besplatno" : `${price} EUR` },
             ].map(({ label, value }) => (
               <div key={label} className="detail-info-row">
                 <div>
@@ -241,23 +454,68 @@ export default function DetailPage({
             <h3>Tvoja reakcija</h3>
             <div style={{ display: "flex", gap: 8, marginBottom: "0.75rem" }}>
               <button
-                className={`vote-btn${e.myVote === "up" ? " up-active" : ""}`}
-                style={{ flex: 1, justifyContent: "center" }}
-                onClick={() => vote(e.id, "up")}
+                onClick={() => handleVote("up")}
+                style={{
+                  flex: 1, padding: "10px", borderRadius: 10, fontSize: 15,
+                  border: myVote === "up" ? "1.5px solid #1D9E75" : "1.5px solid #eee",
+                  background: myVote === "up" ? "#1D9E75" : "transparent",
+                  color: myVote === "up" ? "#fff" : "inherit",
+                  fontWeight: myVote === "up" ? 700 : 400,
+                  cursor: isLoggedIn ? "pointer" : "not-allowed",
+                  opacity: isLoggedIn ? 1 : 0.5,
+                }}
               >
-                + {e.votes.up}
+                👍 {votes.up}
               </button>
               <button
-                className={`vote-btn${e.myVote === "down" ? " down-active" : ""}`}
-                style={{ flex: 1, justifyContent: "center" }}
-                onClick={() => vote(e.id, "down")}
+                onClick={() => handleVote("down")}
+                style={{
+                  flex: 1, padding: "10px", borderRadius: 10, fontSize: 15,
+                  border: myVote === "down" ? "1.5px solid #e74c3c" : "1.5px solid #eee",
+                  background: myVote === "down" ? "#e74c3c" : "transparent",
+                  color: myVote === "down" ? "#fff" : "inherit",
+                  fontWeight: myVote === "down" ? 700 : 400,
+                  cursor: isLoggedIn ? "pointer" : "not-allowed",
+                  opacity: isLoggedIn ? 1 : 0.5,
+                }}
               >
-                - {e.votes.down}
+                👎 {votes.down}
               </button>
             </div>
-            <button className="btn-outline" onClick={() => toggleFav(e.id)}>
-              {e.fav ? "Ukloni iz omiljenih" : "Dodaj u omiljene"}
-            </button>
+            {myVote && (
+              <div
+                style={{
+                  marginBottom: "0.75rem",
+                  color: myVote === "up" ? "#1D9E75" : "#e74c3c",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  textAlign: "center",
+                }}
+              >
+                {myVote === "up" ? "Ovaj dogadjaj ti se svidja." : "Ovaj dogadjaj ti se ne svidja."}
+              </div>
+            )}
+
+            {isLoggedIn ? (
+              <button
+                onClick={handleToggleFav}
+                style={{
+                  width: "100%", padding: "10px", borderRadius: 10,
+                  border: isFav ? "1.5px solid #e74c3c" : "1.5px solid #eee",
+                  background: isFav ? "#fff0f0" : "transparent",
+                  color: isFav ? "#e74c3c" : "inherit",
+                  cursor: "pointer", fontWeight: 500, fontSize: 14,
+                }}
+              >
+                {isFav ? "❤️ Ukloni iz omiljenih" : "🤍 Dodaj u omiljene"}
+              </button>
+            ) : (
+              <div style={{ fontSize: 13, color: G.muted, textAlign: "center" }}>
+                <span style={{ color: G.green, cursor: "pointer", fontWeight: 500 }} onClick={() => navigate("auth")}>
+                  Prijavite se
+                </span> da biste glasali i dodali u omiljene.
+              </div>
+            )}
           </div>
         </div>
       </div>

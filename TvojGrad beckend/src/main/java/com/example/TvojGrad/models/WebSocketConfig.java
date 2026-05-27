@@ -20,7 +20,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Glavna rupa (endpoint) za povezivanje sa frontenda
         registry.addEndpoint("/ws-tvojgrad")
-                .setAllowedOrigins("http://localhost:5173") // URL tvog React-a (Vite)
+                .setAllowedOriginPatterns("*") // URL tvog React-a (Vite)
                 .withSockJS(); // Omogućava fallback opcije ako browser ne podržava čist WS
     }
 }

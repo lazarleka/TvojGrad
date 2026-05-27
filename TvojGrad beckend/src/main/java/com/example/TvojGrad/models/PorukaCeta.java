@@ -6,6 +6,7 @@ public class PorukaCeta {
     @JsonProperty("ID") private Integer ID;
     @JsonProperty("Cet_ID") private Integer cetID;
     @JsonProperty("Posiljalac_ID") private Integer posiljalacID;
+    @JsonProperty("Posiljalac") private Korisnik posiljalac;
     @JsonProperty("Tekst") private String tekst;
     @JsonProperty("Vrijeme") private String vrijeme; // Može i String radi lakšeg slanja formata
 
@@ -25,6 +26,8 @@ public class PorukaCeta {
     public void setCetID(Integer cetID) { this.cetID = cetID; }
     public Integer getPosiljalacID() { return posiljalacID; }
     public void setPosiljalacID(Integer posiljalacID) { this.posiljalacID = posiljalacID; }
+    public Korisnik getPosiljalac() { return posiljalac; }
+    public void setPosiljalac(Korisnik posiljalac) { this.posiljalac = posiljalac; }
     public String getTekst() { return tekst; }
     public void setTekst(String tekst) { this.tekst = tekst; }
     public String getVrijeme() { return vrijeme; }
