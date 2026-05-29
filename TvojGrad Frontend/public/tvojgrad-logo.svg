@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="148" height="34" viewBox="0 0 148 34" fill="none">
+  <path fill="#1D9E75" d="M17 2C10.4 2 5 7.4 5 14c0 9 12 19 12 19s12-10 12-19C29 7.4 23.6 2 17 2Z"/>
+  <circle cx="17" cy="14" r="5" fill="#fff"/>
+  <text x="38" y="23" fill="#085041" font-family="Georgia, 'Times New Roman', serif" font-size="22" font-weight="700">Tvoj</text>
+  <text x="83" y="23" fill="#1D9E75" font-family="Georgia, 'Times New Roman', serif" font-size="22" font-weight="700">Grad</text>
+</svg>

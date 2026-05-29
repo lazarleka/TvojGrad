@@ -7,6 +7,7 @@ export default function EventCard({ event: e, onUpvote, onDownvote, toggleFav, i
   const date = e.date || e.Datum;
   const time = e.time || e.Vreme;
   const city = e.Grad || e.city;
+  const organizer = e.organizer || e.Organizator;
   const price = e.price ?? e.Cijena;
   const votes = e.votes || { up: e.Upvote ?? 0, down: e.Downvote ?? 0 };
 
@@ -32,6 +33,11 @@ export default function EventCard({ event: e, onUpvote, onDownvote, toggleFav, i
           <div className="card-meta-row">
             {time || "/"} · {city || "/"}
           </div>
+          {organizer && (
+            <div className="card-meta-row card-organizer">
+              Organizator: {organizer}
+            </div>
+          )}
         </div>
       </div>
       <div className="card-footer">

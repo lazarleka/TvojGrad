@@ -93,6 +93,7 @@ export default function DetailPage({ event: e, navigate, toast }) {
   const vreme = event.time || event.Vreme;
   const grad = event.city || event.Grad;
   const tip = event.Tip_dogadjaja || event.category;
+  const organizer = event.organizer || event.Organizator;
   const emoji = event.emoji || event.Emoji || "📌";
   const coverColor = event.coverColor || "#1D9E75";
   const price = event.price ?? event.Cijena;
@@ -109,7 +110,7 @@ export default function DetailPage({ event: e, navigate, toast }) {
     try {
       const updated = await submitVote(eventId, uid, voteType);
       let nextEvent = updated;
-      if (previousVote && previousVote !== voteType) {
+      if (previousVote && previousVote !== voteType && updated.__usedLegacyVoteEndpoint) {
         nextEvent = await removeLegacyVote(eventId, previousVote).catch(() => updated);
       }
       setEvent(nextEvent);
@@ -229,19 +230,15 @@ export default function DetailPage({ event: e, navigate, toast }) {
       });
 
       if (!response.ok) throw new Error("Zahtjev nije poslat");
-      await fetch(`${API_BASE_URL}/cetovi`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          Prijava_ID: prijavaID,
-          Posiljalac: { ID: uid },
-          Primalac_ID: targetId,
-          Rejting_1: null,
-          Rejting_2: null,
-        }),
-      }).catch(() => {});
-      setSentPsmRequests((prev) => ({ ...prev, [String(targetId)]: true }));
-      toast && toast("Zahtjev je poslat.");
+      const savedRequest = await response.json();
+      const savedSenderId = getUserId(savedRequest.PosloZahtev || savedRequest.posloZahtev);
+      const savedReceiverId = savedRequest.PrimioZahtev || savedRequest.primioZahtev;
+      if (String(savedSenderId) === String(uid) && String(savedReceiverId) === String(targetId)) {
+        setSentPsmRequests((prev) => ({ ...prev, [String(targetId)]: true }));
+        toast && toast("Zahtjev je poslat.");
+      } else {
+        toast && toast("Vec postoji zahtjev od tog korisnika.");
+      }
     } catch (err) {
       console.error(err);
       toast && toast("Zahtjev nije poslat.");
@@ -364,14 +361,14 @@ export default function DetailPage({ event: e, navigate, toast }) {
               </div>
             )}
 
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+            <div className="psm-table-wrap">
+              <table className="psm-table">
                 <thead>
-                  <tr style={{ textAlign: "left", color: G.muted, borderBottom: "1px solid #eee" }}>
-                    <th style={{ padding: "10px 8px" }}>Osoba</th>
-                    <th style={{ padding: "10px 8px" }}>Poruka</th>
-                    <th style={{ padding: "10px 8px" }}>Status</th>
-                    <th style={{ padding: "10px 8px" }}></th>
+                  <tr>
+                    <th>Osoba</th>
+                    <th>Poruka</th>
+                    <th>Status</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -388,10 +385,10 @@ export default function DetailPage({ event: e, navigate, toast }) {
                       const canSendRequest = isLoggedIn && String(applicantId) !== String(uid) && !applicantClosed;
                       return (
                         <tr key={prijava.ID} style={{ borderBottom: "1px solid #f1f1f1" }}>
-                          <td style={{ padding: "12px 8px", fontWeight: 700 }}>{fullName}</td>
-                          <td style={{ padding: "12px 8px", color: G.muted }}>{prijava.Tekst || "/"}</td>
-                          <td style={{ padding: "12px 8px" }}>{prijava.Status || "/"}</td>
-                          <td style={{ padding: "12px 8px", textAlign: "right" }}>
+                          <td data-label="Osoba">{fullName}</td>
+                          <td data-label="Poruka">{prijava.Tekst || "/"}</td>
+                          <td data-label="Status">{prijava.Status || "/"}</td>
+                          <td data-label="Akcija">
                             {canSendRequest ? (
                               <button
                                 onClick={() => handleSendPsmZahtev(korisnik, prijava.ID, applicantId)}
@@ -439,6 +436,7 @@ export default function DetailPage({ event: e, navigate, toast }) {
               { label: "Vrijeme", value: vreme || "/" },
               { label: "Grad", value: grad || "/" },
               { label: "Tip dogadjaja", value: tip || "/" },
+              { label: "Organizator", value: organizer || "/" },
               { label: "Cijena", value: price == null || price === 0 ? "Besplatno" : `${price} EUR` },
             ].map(({ label, value }) => (
               <div key={label} className="detail-info-row">

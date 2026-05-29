@@ -25,6 +25,16 @@ public class DogadjajController {
         return this.dogadjajService.getAllDogadjaji();
     }
 
+    @GetMapping(value = "/admin/svi")
+    public List<Dogadjaj> getSviDogadjajiZaAdmin() {
+        return this.dogadjajService.getSviDogadjajiZaAdmin();
+    }
+
+    @GetMapping(value = "/organizator/{OrganizatorID}")
+    public List<Dogadjaj> getDogadjajiByOrganizator(@PathVariable("OrganizatorID") int OrganizatorID) {
+        return this.dogadjajService.getDogadjajiByOrganizator(OrganizatorID);
+    }
+
     @GetMapping(value = "/{DogadjajID}")
     public Dogadjaj getDogadjajByID(@PathVariable("DogadjajID") int DogadjajID) {
         return this.dogadjajService.getDogadjajById(DogadjajID);
@@ -38,6 +48,25 @@ public class DogadjajController {
     @PutMapping(value = "/{DogadjajID}")
     public Dogadjaj azurirajDogadjaj(@PathVariable("DogadjajID") int DogadjajID, @RequestBody Dogadjaj dogadjaj) {
         return this.dogadjajService.AzuritanjeDogadjaja(DogadjajID, dogadjaj);
+    }
+
+    @PutMapping(value = "/{DogadjajID}/odobri")
+    public Dogadjaj odobriDogadjaj(
+            @PathVariable("DogadjajID") int DogadjajID,
+            @RequestParam(value = "administratorID", required = false) Integer administratorID) {
+        return this.dogadjajService.odobriDogadjaj(DogadjajID, administratorID);
+    }
+
+    @PutMapping(value = "/{DogadjajID}/odbij")
+    public Dogadjaj odbijDogadjaj(
+            @PathVariable("DogadjajID") int DogadjajID,
+            @RequestParam(value = "administratorID", required = false) Integer administratorID) {
+        return this.dogadjajService.odbijDogadjaj(DogadjajID, administratorID);
+    }
+
+    @PutMapping(value = "/{DogadjajID}/zahtjev-promocija")
+    public Dogadjaj zahtjevZaPromociju(@PathVariable("DogadjajID") int DogadjajID) {
+        return this.dogadjajService.zahtjevZaPromociju(DogadjajID);
     }
 
     @DeleteMapping(value = "/{DogadjajID}")

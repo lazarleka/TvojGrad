@@ -34,4 +34,32 @@ public class KorisnikService {
     public void obrisiKorisnika(int ID) {
         this.korisnikRepositories.obrisiKorisnika(ID);
     }
+
+    public List<Korisnik> getAdminZahtjevi() {
+        return this.korisnikRepositories.getAdminZahtjevi();
+    }
+
+    public List<Korisnik> getOrganizatorZahtjevi() {
+        return this.korisnikRepositories.getOrganizatorZahtjevi();
+    }
+
+    public Korisnik odobriAdmina(int ID) {
+        return this.korisnikRepositories.azurirajOrganizatorStatus(ID, "aktivan");
+    }
+
+    public Korisnik odbijAdmina(int ID) {
+        return this.korisnikRepositories.azurirajOrganizatorStatus(ID, "odbijen_organizator");
+    }
+
+    public Korisnik odobriOrganizatora(int ID) {
+        return this.korisnikRepositories.azurirajOrganizatorStatus(ID, "aktivan");
+    }
+
+    public Korisnik odbijOrganizatora(int ID) {
+        return this.korisnikRepositories.azurirajOrganizatorStatus(ID, "odbijen_organizator");
+    }
+
+    public Korisnik azurirajProfilnu(int ID, String profilna) {
+        return this.korisnikRepositories.azurirajProfilnu(ID, profilna);
+    }
 }

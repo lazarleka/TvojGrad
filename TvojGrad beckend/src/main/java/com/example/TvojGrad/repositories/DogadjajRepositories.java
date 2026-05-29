@@ -23,6 +23,7 @@ public class DogadjajRepositories {
                 rs.getString("Status"),
                 rs.getString("Grad"),
                 rs.getInt("Organizator_ID"),
+                getOptionalString(rs, "Organizator", null),
                 rs.getInt("Administrator_ID"),
                 rs.getString("Tip_dogadjaja"),
                 rs.getString("slika_1"),
@@ -31,8 +32,21 @@ public class DogadjajRepositories {
         );
     }
 
+    private String baseSelect() {
+        return "SELECT o.*, CONCAT_WS(' ', k.Ime, k.Prezime) AS Organizator FROM objava o LEFT JOIN korisnik k ON k.ID=o.Organizator_ID";
+    }
+
+    private String getOptionalString(ResultSet rs, String columnName, String fallback) {
+        try {
+            String value = rs.getString(columnName);
+            return value != null ? value : fallback;
+        } catch (SQLException e) {
+            return fallback;
+        }
+    }
+
     private Dogadjaj getDogadjajById(Connection conn, int ID) throws SQLException {
-        String sql = "SELECT * FROM objava WHERE ID=?";
+        String sql = baseSelect() + " WHERE o.ID=?";
         PreparedStatement ps = conn.prepareStatement(sql);
         ps.setInt(1, ID);
         ResultSet rs = ps.executeQuery();
@@ -86,7 +100,7 @@ public class DogadjajRepositories {
             conn = DBUtil.open();
             result = new ArrayList<>();
             // Mala ispravka dupliranog uslova za status u tvom SQL-u
-            String sql = "SELECT * FROM objava WHERE Status!='na_cekanju' and Status!='odbijena'";
+            String sql = baseSelect() + " WHERE o.Status IN ('odobrena','promovisana') ORDER BY o.Datum ASC, o.Vreme ASC";
             PreparedStatement ps = conn.prepareStatement(sql);
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
@@ -135,7 +149,11 @@ public class DogadjajRepositories {
             ps.setString(4, dogadjaj.getVreme());
             ps.setObject(5, dogadjaj.getUpvote());
             ps.setObject(6, dogadjaj.getDownvote());
-            ps.setString(7, dogadjaj.getStatus());
+            String requestedStatus = dogadjaj.getStatus();
+            String status = "na_cekanju_promovisana".equals(requestedStatus) || "promovisana".equals(requestedStatus)
+                    ? "na_cekanju_promovisana"
+                    : "na_cekanju";
+            ps.setString(7, status);
             ps.setString(8, dogadjaj.getGrad());
             ps.setObject(9, dogadjaj.getOrganizator_ID());
             ps.setObject(10, dogadjaj.getAdministrator_ID());
@@ -149,6 +167,7 @@ public class DogadjajRepositories {
             if (rs.next()) {
                 dogadjaj.setID(rs.getInt(1));
             }
+            dogadjaj.setStatus(status);
             return dogadjaj;
         } catch (Exception e) {
             System.out.println(e);
@@ -370,6 +389,121 @@ public class DogadjajRepositories {
         } finally {
             if (conn != null) {
                 try { conn.close(); } catch (Exception ex) { System.out.println(ex); }
+            }
+        }
+    }
+
+    public List<Dogadjaj> getSviDogadjajiZaAdmin() {
+        Connection conn = null;
+        List<Dogadjaj> result = new ArrayList<>();
+
+        try {
+            conn = DBUtil.open();
+            String sql = baseSelect() + " ORDER BY o.ID DESC";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                result.add(mapRow(rs));
+            }
+        } catch (Exception e) {
+            System.out.println(e);
+            result = null;
+        } finally {
+            if (conn != null) {
+                try { conn.close(); }
+                catch (Exception ex) { System.out.println(ex); }
+            }
+        }
+        return result;
+    }
+
+    public List<Dogadjaj> getDogadjajiByOrganizator(int organizatorID) {
+        Connection conn = null;
+        List<Dogadjaj> result = new ArrayList<>();
+
+        try {
+            conn = DBUtil.open();
+            String sql = baseSelect() + " WHERE o.Organizator_ID=? ORDER BY o.ID DESC";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, organizatorID);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                result.add(mapRow(rs));
+            }
+        } catch (Exception e) {
+            System.out.println(e);
+            result = null;
+        } finally {
+            if (conn != null) {
+                try { conn.close(); }
+                catch (Exception ex) { System.out.println(ex); }
+            }
+        }
+        return result;
+    }
+
+    public Dogadjaj promijeniStatus(int ID, String status, Integer administratorID) {
+        Connection conn = null;
+
+        try {
+            conn = DBUtil.open();
+            String sql = "UPDATE objava SET Status=?, Administrator_ID=? WHERE ID=?";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setString(1, status);
+            ps.setObject(2, administratorID);
+            ps.setInt(3, ID);
+            ps.executeUpdate();
+            return getDogadjajById(conn, ID);
+        } catch (SQLException s) {
+            System.out.println(s);
+            return null;
+        } finally {
+            if (conn != null) {
+                try { conn.close(); }
+                catch (Exception ex) { System.out.println(ex); }
+            }
+        }
+    }
+
+    public Dogadjaj zahtjevZaPromociju(int ID) {
+        Connection conn = null;
+
+        try {
+            conn = DBUtil.open();
+            String sql = "UPDATE objava SET Status='na_cekanju_promovisana' WHERE ID=? AND Status='odobrena'";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, ID);
+            ps.executeUpdate();
+            return getDogadjajById(conn, ID);
+        } catch (SQLException s) {
+            System.out.println(s);
+            return null;
+        } finally {
+            if (conn != null) {
+                try { conn.close(); }
+                catch (Exception ex) { System.out.println(ex); }
+            }
+        }
+    }
+
+    public Dogadjaj azurirajSliku(int ID, String slika) {
+        Connection conn = null;
+
+        try {
+            conn = DBUtil.open();
+            String sql = "UPDATE objava SET slika_1=? WHERE ID=?";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setString(1, slika);
+            ps.setInt(2, ID);
+            ps.executeUpdate();
+            return getDogadjajById(conn, ID);
+        } catch (SQLException s) {
+            System.out.println(s);
+            return null;
+        } finally {
+            if (conn != null) {
+                try { conn.close(); }
+                catch (Exception ex) { System.out.println(ex); }
             }
         }
     }

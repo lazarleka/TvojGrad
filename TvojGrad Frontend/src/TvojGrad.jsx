@@ -11,7 +11,24 @@ import AuthPage from "./pages/AuthPage";
 import ProfilePage from "./pages/ProfilePage";
 import OrganizerPage from "./pages/OrganizerPage";
 import AdminPage from "./pages/AdminPage";
-import { API_BASE_URL, fetchEventById, getStoredUser, getUserId } from "./api";
+import {
+  API_BASE_URL,
+  approveAdminRequest,
+  approveEventRequest,
+  createEvent,
+  deleteEventById,
+  fetchAdminEvents,
+  fetchAdminRequests,
+  fetchCities,
+  fetchEventById,
+  fetchOrganizerEvents,
+  getStoredUser,
+  getUserId,
+  rejectAdminRequest,
+  rejectEventRequest,
+  requestEventPromotion,
+  uploadEventImage,
+} from "./api";
 import { Client } from "@stomp/stompjs";
 
 const PAGE_PATHS = {
@@ -75,6 +92,9 @@ export default function TvojGrad() {
   const [category, setCategory] = useState("Sve");
   const [city, setCity] = useState("Svi gradovi");
   const [search, setSearch] = useState("");
+  const [date, setDate] = useState("");
+  const [cities, setCities] = useState(["Svi gradovi"]);
+  const [adminRequests, setAdminRequests] = useState([]);
   const [psmRequests, setPsmRequests] = useState({});
   const [psmListings, setPsmListings] = useState({});
   const [conversations, setConversations] = useState({});
@@ -92,6 +112,8 @@ export default function TvojGrad() {
   const backendUnreadMessages = Object.keys(backendUnreadCetIds).length;
   const unreadCount = Object.values(userConversations).filter((c) => c.unread).length + incomingRequests.length + backendUnreadMessages;
   const backendUserId = getUserId(user);
+  const userRole = user?.role || user?.tip || user?.Tip;
+  const userName = user?.name || user?.ime || user?.Ime || `${user?.Ime || ""} ${user?.Prezime || ""}`.trim();
 
   const navigate = (p, ev, opts) => {
     const path = buildPath(p, ev, opts);
@@ -124,6 +146,44 @@ export default function TvojGrad() {
       .then(setRouteEvent)
       .catch(() => setRouteEvent(null));
   }, [route.page, route.eventId]);
+
+  useEffect(() => {
+    fetchCities()
+      .then(setCities)
+      .catch(() => setCities(["Svi gradovi", "Podgorica", "Bar", "Budva", "Tivat", "Niksic"]));
+  }, []);
+
+  useEffect(() => {
+    if (page === "admin" && userRole === "administrator") {
+      loadAdminData();
+    }
+    if (page === "organizer" && backendUserId) {
+      loadOrganizerEvents();
+    }
+  }, [page, userRole, backendUserId]);
+
+  const loadAdminData = async () => {
+    try {
+      const [allEvents, requests] = await Promise.all([fetchAdminEvents(), fetchAdminRequests()]);
+      setEvents(allEvents);
+      setAdminRequests(requests || []);
+    } catch (err) {
+      console.error(err);
+      toast("Admin podaci nisu ucitani");
+    }
+  };
+
+  const loadOrganizerEvents = async () => {
+    try {
+      const organizerEvents = await fetchOrganizerEvents(backendUserId);
+      setEvents((prev) => {
+        const others = prev.filter((e) => String(e.organizerId) !== String(backendUserId));
+        return [...others, ...organizerEvents];
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     if (!backendUserId) {
@@ -273,78 +333,79 @@ export default function TvojGrad() {
     toast(isFav ? "Uklonjeno iz omiljenih" : "Dodato u omiljene");
   };
 
-  const updateEventImg = (id, img) => {
+  const updateEventImg = async (id, img, file) => {
     if (!user) return;
-    setEvents((prev) =>
-      prev.map((e) => {
-        if (e.id !== id) return e;
-        if (e.organizer !== user.name) return e;
-        return { ...e, coverImg: img };
-      })
-    );
-    toast(img ? "Slika azurirana" : "Slika uklonjena");
+    try {
+      const updated = file ? await uploadEventImage(id, file) : { id, coverImg: img };
+      setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...updated, coverImg: updated.coverImg || img } : e)));
+      toast(img ? "Slika azurirana" : "Slika uklonjena");
+    } catch {
+      toast("Slika nije sacuvana");
+    }
   };
 
-  const approveEvent = (id) => {
-    setEvents((prev) => {
-      const approvedAt = Date.now();
-      return prev
-        .map((e) =>
-          e.id === id
-            ? { ...e, status: "approved", approvedAt, votes: { up: 0, down: 0 }, userVotes: {} }
-            : e
-        )
-        .sort((a, b) => (b.approvedAt || 0) - (a.approvedAt || 0));
-    });
-    toast("Dogadjaj odobren");
+  const approveEvent = async (id) => {
+    try {
+      const updated = await approveEventRequest(id, backendUserId);
+      setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
+      toast("Dogadjaj odobren");
+    } catch {
+      toast("Dogadjaj nije odobren");
+    }
   };
-  const rejectEvent = (id) => {
-    setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, status: "rejected" } : e)));
-    toast("Dogadjaj odbijen");
+  const rejectEvent = async (id) => {
+    try {
+      const updated = await rejectEventRequest(id, backendUserId);
+      setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
+      toast("Dogadjaj odbijen");
+    } catch {
+      toast("Dogadjaj nije odbijen");
+    }
   };
-  const deleteEvent = (id) => {
-    setEvents((prev) => {
-      const target = prev.find((e) => e.id === id);
-      if (!target) return prev;
-      const canDelete = user?.role === "admin" || (user?.role === "organizer" && target.organizer === user.name);
-      if (!canDelete) {
-        toast("Nemate dozvolu za brisanje ove objave");
-        return prev;
-      }
+  const deleteEvent = async (id) => {
+    const target = events.find((e) => e.id === id);
+    if (!target) return;
+    const canDelete = userRole === "administrator" || (userRole === "organizator" && String(target.organizerId) === String(backendUserId));
+    if (!canDelete) {
+      toast("Nemate dozvolu za brisanje ove objave");
+      return;
+    }
+
+    try {
+      await deleteEventById(id);
+      setEvents((prev) => prev.filter((e) => e.id !== id));
       toast("Dogadjaj obrisan");
-      return prev.filter((e) => e.id !== id);
-    });
+      if (userRole === "organizator") {
+        loadOrganizerEvents();
+      }
+    } catch (err) {
+      console.error(err);
+      toast("Dogadjaj nije obrisan");
+    }
   };
 
-  const promoteEvent = (id) => {
-    setEvents((prev) =>
-      prev.map((e) => {
-        if (e.id !== id) return e;
-        const canPromote = user?.role === "admin" || (user?.role === "organizer" && e.organizer === user.name);
-        if (!canPromote) {
-          toast("Nemate dozvolu za promociju ove objave");
-          return e;
-        }
-        if (e.status !== "approved") {
-          toast("Dogadjaj mora biti odobren prije promocije");
-          return e;
-        }
-        if (e.promoted) {
-          toast("Dogadjaj je vec promovisan");
-          return e;
-        }
-        toast("Dogadjaj oznacen za promociju");
-        return { ...e, promoted: true };
-      })
-    );
+  const promoteEvent = async (id) => {
+    try {
+      const updated = await requestEventPromotion(id);
+      setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
+      toast("Zahtjev za promociju je poslat adminu");
+    } catch {
+      toast("Zahtjev za promociju nije sacuvan");
+    }
   };
 
-  const addEvent = (newEv) => {
-    setEvents((prev) => [
-      ...prev,
-      { ...newEv, id: Date.now(), votes: { up: 0, down: 0 }, userVotes: {}, favoritesByUser: {}, status: "pending" },
-    ]);
-    toast("Dogadjaj dodat - ceka odobrenje");
+  const addEvent = async (newEv) => {
+    try {
+      let saved = await createEvent(newEv, backendUserId);
+      if (newEv.coverFile) {
+        saved = await uploadEventImage(saved.id, newEv.coverFile);
+      }
+      setEvents((prev) => [saved, ...prev.filter((e) => e.id !== saved.id)]);
+      toast(newEv.promoted ? "Dogadjaj dodat - ceka odobrenje promocije" : "Dogadjaj dodat - ceka odobrenje");
+    } catch (err) {
+      console.error(err);
+      toast("Dogadjaj nije sacuvan");
+    }
   };
 
   const currentPsmUser = () => ({
@@ -539,9 +600,6 @@ export default function TvojGrad() {
         eventsForCurrentUser.find((e) => String(getEventId(e)) === String(route.eventId)) ||
         (String(getEventId(selectedEvent)) === String(route.eventId) ? selectedEvent : null)
       : null;
-  const userRole = user?.role || user?.tip || user?.Tip;
-  const userName = user?.name || user?.ime || user?.Ime;
-
   return (
     <>
       <style>{css}</style>
@@ -565,6 +623,9 @@ export default function TvojGrad() {
             setCity={setCity}
             search={search}
             setSearch={setSearch}
+            date={date}
+            setDate={setDate}
+            cities={cities}
             vote={vote}
             toggleFav={toggleFav}
             navigate={navigate}
@@ -622,20 +683,46 @@ export default function TvojGrad() {
             rejectPsmRequest={rejectPsmRequest}
             externalUnreadCetIds={backendUnreadCetIds}
             onMarkChatRead={markBackendChatRead}
+            onUserUpdated={updateUser}
           />
         )}
         {page === "organizer" && userRole === "organizator" && (
           <OrganizerPage
             user={user}
-            events={events.filter((e) => e.organizer === userName)}
+            events={events.filter((e) => String(e.organizerId) === String(backendUserId) || e.organizer === userName)}
             addEvent={addEvent}
             deleteEvent={deleteEvent}
             promoteEvent={promoteEvent}
             updateEventImg={updateEventImg}
+            cities={cities}
           />
         )}
         {page === "admin" && userRole === "administrator" && (
-          <AdminPage events={events} approveEvent={approveEvent} rejectEvent={rejectEvent} deleteEvent={deleteEvent} />
+          <AdminPage
+            events={events}
+            approveEvent={approveEvent}
+            rejectEvent={rejectEvent}
+            deleteEvent={deleteEvent}
+            adminRequests={adminRequests}
+            approveAdmin={async (id) => {
+              try {
+                await approveAdminRequest(id);
+                setAdminRequests((prev) => prev.filter((u) => String(u.ID || u.id) !== String(id)));
+                toast("Organizator odobren");
+              } catch {
+                toast("Organizator nije odobren");
+              }
+            }}
+            rejectAdmin={async (id) => {
+              try {
+                await rejectAdminRequest(id);
+                setAdminRequests((prev) => prev.filter((u) => String(u.ID || u.id) !== String(id)));
+                toast("Zahtjev organizatora odbijen");
+              } catch {
+                toast("Zahtjev organizatora nije odbijen");
+              }
+            }}
+          />
         )}
 
         <footer className="footer">

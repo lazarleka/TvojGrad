@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CATEGORIES, CITIES, G } from "../constants";
+import { CATEGORIES, CITIES } from "../constants";
 import EventCard from "../components/EventCard";
 import { API_BASE_URL, fetchEvents, fetchUserVote, getStoredUser, getUserId, removeLegacyVote, submitVote } from "../api";
 
@@ -16,7 +16,7 @@ const saveVotes = (votes) => {
   localStorage.setItem("myVotes", JSON.stringify(votes));
 };
 
-export default function HomePage({ category, setCategory, city, setCity, search, setSearch, navigate }) {
+export default function HomePage({ category, setCategory, city, setCity, search, setSearch, date, setDate, cities = CITIES, navigate }) {
   const [currentUser] = useState(getStoredUser);
   const [dbEvents, setDbEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +79,7 @@ export default function HomePage({ category, setCategory, city, setCity, search,
     try {
       const updated = await submitVote(eventId, uid, voteType);
       let nextEvent = updated;
-      if (previousVote && previousVote !== voteType) {
+      if (previousVote && previousVote !== voteType && updated.__usedLegacyVoteEndpoint) {
         nextEvent = await removeLegacyVote(eventId, previousVote).catch(() => updated);
       }
       const nextVotes = { ...myVotes, [eventId]: voteType };
@@ -119,7 +119,9 @@ export default function HomePage({ category, setCategory, city, setCity, search,
       e.description?.toLowerCase().includes(search.toLowerCase());
     const matchesCity = !city || city === "Svi gradovi" || e.city === city;
     const matchesCategory = !category || category === "Sve" || e.Tip_dogadjaja === category || e.category === category;
-    return matchesSearch && matchesCity && matchesCategory;
+    const eventDate = e.date ? String(e.date).slice(0, 10) : "";
+    const matchesDate = !date || eventDate === date;
+    return matchesSearch && matchesCity && matchesCategory && matchesDate;
   });
 
   const promotedEvents = dbEvents.filter((e) => e.promoted);
@@ -139,21 +141,27 @@ export default function HomePage({ category, setCategory, city, setCity, search,
         <p className="hero-sub">Svi dogadjaji u jednom mjestu. Pronadji, prati i podji zajedno!</p>
         <div className="search-wrap">
           <input
-            style={{ flex: 1, border: "none", outline: "none", fontSize: 15, fontFamily: "'DM Sans',sans-serif", background: "transparent" }}
+            className="search-field search-text"
             placeholder="Pretrazi dogadjaje..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           <select
-            style={{ border: "none", outline: "none", fontSize: 13, fontFamily: "'DM Sans',sans-serif", color: G.muted, background: "transparent", cursor: "pointer" }}
+            className="search-field search-select"
             value={city}
             onChange={(e) => setCity(e.target.value)}
           >
-            {CITIES.map((c) => <option key={c}>{c}</option>)}
+            {cities.map((c) => <option key={c}>{c}</option>)}
           </select>
-          <button style={{ background: G.green, color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 14, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", fontWeight: 500 }}>
-            Pretrazi
-          </button>
+          <label className="search-date">
+            <span>Datum</span>
+            <input
+              type="date"
+              aria-label="Datum dogadjaja"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </label>
         </div>
         <div className="filter-chips">
           {CATEGORIES.map((c) => (

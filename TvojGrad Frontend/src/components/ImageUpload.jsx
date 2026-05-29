@@ -6,7 +6,7 @@ export default function ImageUpload({ current, onUpload, label = "Dodaj sliku" }
   const handleFile = (file) => {
     if (!file || !file.type.startsWith("image/")) return;
     const reader = new FileReader();
-    reader.onload = (e) => onUpload(e.target.result);
+    reader.onload = (e) => onUpload(e.target.result, file);
     reader.readAsDataURL(file);
   };
   return (

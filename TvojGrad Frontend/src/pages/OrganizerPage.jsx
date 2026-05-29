@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { CATEGORIES, CITIES, G } from '../constants';
 import ImageUpload from '../components/ImageUpload';
 
-export default function OrganizerPage({ user, events, addEvent, deleteEvent, promoteEvent, updateEventImg }) {
+export default function OrganizerPage({ user, events, addEvent, deleteEvent, promoteEvent, updateEventImg, cities = CITIES }) {
   const emojis = ["🎷","🎤","🏃","🎨","💻","📚","💃","🚀","🎭","🎬","🎸","🏋️","🎪","🎯","🍕"];
   const emptyForm = {
     title: "",
@@ -15,6 +15,7 @@ export default function OrganizerPage({ user, events, addEvent, deleteEvent, pro
     desc: "",
     emoji: "🎉",
     coverImg: null,
+    coverFile: null,
     coverColor: G.green,
     promoted: false,
   };
@@ -22,9 +23,9 @@ export default function OrganizerPage({ user, events, addEvent, deleteEvent, pro
   const set = (k) => (v) =>
     setForm((f) => ({ ...f, [k]: v.target?.type === "checkbox" ? v.target.checked : v.target?.value ?? v }));
 
-  const submit = () => {
+  const submit = async () => {
     if (!form.title || !form.date || !form.location) return;
-    addEvent({ ...form, organizer: user.name, price: Number(form.price) });
+    await addEvent({ ...form, organizer: user.name, price: Number(form.price) });
     setForm(emptyForm);
   };
 
@@ -51,7 +52,7 @@ export default function OrganizerPage({ user, events, addEvent, deleteEvent, pro
             <div className="form-group">
               <label className="form-label">Grad</label>
               <select className="form-select" value={form.city} onChange={set("city")}>
-                {CITIES.filter((c) => c !== "Svi gradovi").map((c) => <option key={c}>{c}</option>)}
+                {cities.filter((c) => c !== "Svi gradovi").map((c) => <option key={c}>{c}</option>)}
               </select>
             </div>
           </div>
@@ -95,7 +96,7 @@ export default function OrganizerPage({ user, events, addEvent, deleteEvent, pro
           </div>
           <div className="form-group">
             <label className="form-label">Slika dogadjaja</label>
-            <ImageUpload current={form.coverImg} onUpload={(img) => setForm((f) => ({ ...f, coverImg: img }))} />
+            <ImageUpload current={form.coverImg} onUpload={(img, file) => setForm((f) => ({ ...f, coverImg: img, coverFile: file || null }))} />
           </div>
           <div className="promo-option">
             <label className="promo-check">
@@ -137,14 +138,14 @@ export default function OrganizerPage({ user, events, addEvent, deleteEvent, pro
                     <input type="file" accept="image/*" style={{display:"none"}} onChange={(ev) => {
                       const file = ev.target.files[0]; if (!file) return;
                       const reader = new FileReader();
-                      reader.onload = (r) => updateEventImg(e.id, r.target.result);
+                      reader.onload = (r) => updateEventImg(e.id, r.target.result, file);
                       reader.readAsDataURL(file);
                     }} />
                   </label>
                 </div>
                 {e.promoted && <span className="status-badge status-promoted">Promovisan</span>}
                 <span className={`status-badge status-${e.status}`}>
-                  {e.status === "approved" ? "Odobren" : e.status === "pending" ? "Na cekanju" : "Odbijen"}
+                  {e.status === "approved" ? "Odobren" : e.status === "na_cekanju_promovisana" ? "Ceka promociju" : e.status === "pending" || e.status === "na_cekanju" ? "Na cekanju" : "Odbijen"}
                 </span>
                 {e.status === "approved" && !e.promoted && (
                   <div className="promo-inline-note">

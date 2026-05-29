@@ -79,9 +79,11 @@ public class PodjiSaMnomZahtevRepositories {
 
         try {
             conn = DBUtil.open();
-            PreparedStatement ps = conn.prepareStatement(BASE_SELECT + " WHERE z.PosloZahtev=? AND z.PrimioZahtev=?");
+            PreparedStatement ps = conn.prepareStatement(BASE_SELECT + " WHERE (z.PosloZahtev=? AND z.PrimioZahtev=?) OR (z.PosloZahtev=? AND z.PrimioZahtev=?)");
             ps.setInt(1, posloZahtevID);
             ps.setInt(2, primioZahtevID);
+            ps.setInt(3, primioZahtevID);
+            ps.setInt(4, posloZahtevID);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) return mapRow(rs);
             else return null;

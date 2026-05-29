@@ -19,6 +19,14 @@ public class DogadjajService {
         return this.dogadjajRepositories.getAllDogadjaji();
     }
 
+    public List<Dogadjaj> getSviDogadjajiZaAdmin() {
+        return this.dogadjajRepositories.getSviDogadjajiZaAdmin();
+    }
+
+    public List<Dogadjaj> getDogadjajiByOrganizator(int organizatorID) {
+        return this.dogadjajRepositories.getDogadjajiByOrganizator(organizatorID);
+    }
+
     public Dogadjaj getDogadjajById(int ID) {
         return this.dogadjajRepositories.getDogadjajById(ID);
     }
@@ -64,5 +72,23 @@ public class DogadjajService {
 
     public String getGlas(int dogadjajID, int korisnikID) {
         return this.dogadjajRepositories.getGlas(dogadjajID, korisnikID);
+    }
+
+    public Dogadjaj odobriDogadjaj(int ID, Integer administratorID) {
+        Dogadjaj dogadjaj = this.dogadjajRepositories.getDogadjajById(ID);
+        String status = "na_cekanju_promovisana".equals(dogadjaj.getStatus()) ? "promovisana" : "odobrena";
+        return this.dogadjajRepositories.promijeniStatus(ID, status, administratorID);
+    }
+
+    public Dogadjaj odbijDogadjaj(int ID, Integer administratorID) {
+        return this.dogadjajRepositories.promijeniStatus(ID, "odbijena", administratorID);
+    }
+
+    public Dogadjaj zahtjevZaPromociju(int ID) {
+        return this.dogadjajRepositories.zahtjevZaPromociju(ID);
+    }
+
+    public Dogadjaj azurirajSliku(int ID, String slika) {
+        return this.dogadjajRepositories.azurirajSliku(ID, slika);
     }
 }

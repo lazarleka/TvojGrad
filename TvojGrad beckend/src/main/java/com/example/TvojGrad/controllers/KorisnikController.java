@@ -22,6 +22,16 @@ public class KorisnikController {
         return this.korisnikService.getAllKorisnici();
     }
 
+    @GetMapping(value = "/admin-zahtjevi")
+    public List<Korisnik> getAdminZahtjevi() {
+        return this.korisnikService.getAdminZahtjevi();
+    }
+
+    @GetMapping(value = "/organizator-zahtjevi")
+    public List<Korisnik> getOrganizatorZahtjevi() {
+        return this.korisnikService.getOrganizatorZahtjevi();
+    }
+
     @GetMapping(value = "/{ID}")
     public Korisnik getKorisnikById(@PathVariable("ID") int ID) {
         return this.korisnikService.getKorisnikById(ID);
@@ -35,6 +45,26 @@ public class KorisnikController {
     @PutMapping(value = "/{ID}")
     public Korisnik azurirajKorisnika(@PathVariable("ID") int ID, @RequestBody Korisnik k) {
         return this.korisnikService.azurirajKorisnika(ID, k);
+    }
+
+    @PutMapping(value = "/{ID}/odobri-admin")
+    public Korisnik odobriAdmina(@PathVariable("ID") int ID) {
+        return this.korisnikService.odobriAdmina(ID);
+    }
+
+    @PutMapping(value = "/{ID}/odbij-admin")
+    public Korisnik odbijAdmina(@PathVariable("ID") int ID) {
+        return this.korisnikService.odbijAdmina(ID);
+    }
+
+    @PutMapping(value = "/{ID}/odobri-organizatora")
+    public Korisnik odobriOrganizatora(@PathVariable("ID") int ID) {
+        return this.korisnikService.odobriOrganizatora(ID);
+    }
+
+    @PutMapping(value = "/{ID}/odbij-organizatora")
+    public Korisnik odbijOrganizatora(@PathVariable("ID") int ID) {
+        return this.korisnikService.odbijOrganizatora(ID);
     }
 
     @DeleteMapping(value = "/{ID}")

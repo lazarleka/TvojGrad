@@ -8,6 +8,7 @@ export default function AuthPage({ setUser, navigate, toast }) {
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "visitor" });
   
   const set = k => v => setForm(f => ({ ...f, [k]: v.target?.value ?? v }));
+  const selectedUserType = form.role === "organizer" ? "organizator" : "obicni";
 
   // KLJUČNA PROMJENA JE OVDJE
   const handleAuthSuccess = (korisnik) => {
@@ -54,8 +55,8 @@ export default function AuthPage({ setUser, navigate, toast }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: form.email,
-          lozinka: form.password
+          Email: form.email.trim(),
+          Lozinka: form.password
         })
       });
 
@@ -83,24 +84,28 @@ export default function AuthPage({ setUser, navigate, toast }) {
     const nameParts = form.name.trim().split(" ");
     const ime = nameParts[0];
     const prezime = nameParts.slice(1).join(" ") || ""; 
-    const dbRole = form.role === "organizer" ? "organizator" : "obicni";
 
     try {
       const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ime: ime,
-          prezime: prezime,
-          email: form.email,
-          tip: dbRole, 
-          lozinka: form.password,
-          profilna: "" 
+          Ime: ime,
+          Prezime: prezime,
+          Email: form.email.trim(),
+          Tip: selectedUserType,
+          Lozinka: form.password,
+          Profilna: ""
         })
       });
 
       if (response.status === 201) {
         const noviKorisnik = await response.json();
+        if ((noviKorisnik.Status || noviKorisnik.status) === "na_cekanju_organizator") {
+          toast("Registracija organizatora je poslata. Mozete se prijaviti tek kada vas admin odobri.");
+          setTab("login");
+          return;
+        }
         handleAuthSuccess(noviKorisnik);
         const imePrikaz = noviKorisnik.ime || noviKorisnik.Ime;
         toast(`Uspješna registracija! Dobrodošli, ${imePrikaz}!`);
@@ -156,6 +161,11 @@ export default function AuthPage({ setUser, navigate, toast }) {
                 <option value="visitor">Posjetilac</option>
                 <option value="organizer">Organizator</option>
               </select>
+              {form.role === "organizer" && (
+                <div style={{ fontSize: 12, color: G.muted, marginTop: 6 }}>
+                  Organizatorski nalog mora da odobri administrator.
+                </div>
+              )}
             </div>
             <button className="auth-btn" onClick={register}>Registruj se</button>
           </>

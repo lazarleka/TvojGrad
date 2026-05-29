@@ -1,13 +1,16 @@
 package com.example.TvojGrad.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonAlias;
 
 public class LoginRequest {
 
     @JsonProperty("Email")
+    @JsonAlias("email")
     private String Email;
 
     @JsonProperty("Lozinka")
+    @JsonAlias("lozinka")
     private String Lozinka;
 
     public LoginRequest() {}

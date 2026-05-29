@@ -35,6 +35,9 @@ public class Dogadjaj {
     @JsonProperty("Organizator_ID")
     private Integer Organizator_ID;
 
+    @JsonProperty("Organizator")
+    private String Organizator;
+
     @JsonProperty("Administrator_ID")
     private Integer Administrator_ID;
 
@@ -51,21 +54,43 @@ public class Dogadjaj {
     public Dogadjaj() {}
 
     public Dogadjaj(
-            @JsonProperty("ID") Integer ID,
-            @JsonProperty("Naslov") String Naslov,
-            @JsonProperty("Opis") String Opis,
-            @JsonProperty("Datum") Date Datum,
-            @JsonProperty("Vreme") String Vreme,
-            @JsonProperty("Upvote") Integer Upvote,
-            @JsonProperty("Downvote") Integer Downvote,
-            @JsonProperty("Status") String Status,
-            @JsonProperty("Grad") String Grad,
-            @JsonProperty("Organizator_ID") Integer Organizator_ID,
-            @JsonProperty("Administrator_ID") Integer Administrator_ID,
-            @JsonProperty("Tip_dogadjaja") String Tip_dogadjaja,
-            @JsonProperty("slika_1") String slika_1,
-            @JsonProperty("Emoji") String Emoji,
-            @JsonProperty("Cijena") Double Cijena
+            Integer ID,
+            String Naslov,
+            String Opis,
+            Date Datum,
+            String Vreme,
+            Integer Upvote,
+            Integer Downvote,
+            String Status,
+            String Grad,
+            Integer Organizator_ID,
+            Integer Administrator_ID,
+            String Tip_dogadjaja,
+            String slika_1,
+            String Emoji,
+            Double Cijena
+    ) {
+        this(ID, Naslov, Opis, Datum, Vreme, Upvote, Downvote, Status, Grad, Organizator_ID,
+                null, Administrator_ID, Tip_dogadjaja, slika_1, Emoji, Cijena);
+    }
+
+    public Dogadjaj(
+            Integer ID,
+            String Naslov,
+            String Opis,
+            Date Datum,
+            String Vreme,
+            Integer Upvote,
+            Integer Downvote,
+            String Status,
+            String Grad,
+            Integer Organizator_ID,
+            String Organizator,
+            Integer Administrator_ID,
+            String Tip_dogadjaja,
+            String slika_1,
+            String Emoji,
+            Double Cijena
     ) {
         this.ID = ID;
         this.Naslov = Naslov;
@@ -77,6 +102,7 @@ public class Dogadjaj {
         this.Status = Status;
         this.Grad = Grad;
         this.Organizator_ID = Organizator_ID;
+        this.Organizator = Organizator;
         this.Administrator_ID = Administrator_ID;
         this.Tip_dogadjaja = Tip_dogadjaja;
         this.slika_1 = slika_1;
@@ -94,6 +120,7 @@ public class Dogadjaj {
     public String getStatus() { return Status; }
     public String getGrad() { return Grad; }
     public Integer getOrganizator_ID() { return Organizator_ID; }
+    public String getOrganizator() { return Organizator; }
     public Integer getAdministrator_ID() { return Administrator_ID; }
     public String getTip_dogadjaja() { return Tip_dogadjaja; }
     public String getSlika_1() { return slika_1; }
@@ -110,6 +137,7 @@ public class Dogadjaj {
     public void setStatus(String status) { this.Status = status; }
     public void setGrad(String grad) { this.Grad = grad; }
     public void setOrganizator_ID(Integer organizator_ID) { this.Organizator_ID = organizator_ID; }
+    public void setOrganizator(String organizator) { this.Organizator = organizator; }
     public void setAdministrator_ID(Integer administrator_ID) { this.Administrator_ID = administrator_ID; }
     public void setTip_dogadjaja(String tip_dogadjaja) { this.Tip_dogadjaja = tip_dogadjaja; }
     public void setSlika_1(String slika_1) { this.slika_1 = slika_1; }

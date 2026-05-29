@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { G } from "../constants";
 import InboxPanel from "../components/InboxPanel";
-import { API_BASE_URL, fetchEvents, fetchUserVote, formatEvent, getUserId } from "../api";
+import { API_BASE_URL, absoluteImgSrc, fetchEvents, fetchUserVote, formatEvent, getUserId, uploadProfileImage } from "../api";
 import { Client } from "@stomp/stompjs";
 
 const normalizeRole = (role) => {
@@ -23,6 +23,15 @@ const initialsFor = (name) => name
   .map((part) => part[0])
   .join("")
   .toUpperCase() || "?";
+
+const avatarFor = (person, fallbackName, extraClass = "") => {
+  const image = absoluteImgSrc(person?.Profilna || person?.profilna);
+  return (
+    <div className={`avatar avatar-img ${extraClass}`}>
+      {image ? <img src={image} alt={fallbackName} /> : initialsFor(fallbackName)}
+    </div>
+  );
+};
 
 const statusLabel = (status) => {
   const value = (status || "").toLowerCase();
@@ -51,6 +60,7 @@ export default function ProfilePage({
   onUnreadMessagesChange,
   externalUnreadCetIds = {},
   onMarkChatRead,
+  onUserUpdated,
 }) {
   const uid = getUserId(user);
   const name = userName(user);
@@ -58,6 +68,7 @@ export default function ProfilePage({
   const role = normalizeRole(user?.Tip || user?.tip || user?.role);
   const roleLabels = { visitor: "Posjetilac", organizer: "Organizator", admin: "Administrator" };
   const roleClasses = { visitor: "role-visitor", organizer: "role-organizer", admin: "role-admin" };
+  const profileImage = absoluteImgSrc(user?.Profilna || user?.profilna);
 
   const [backendFavorites, setBackendFavorites] = useState([]);
   const [backendVotedEvents, setBackendVotedEvents] = useState([]);
@@ -371,7 +382,8 @@ export default function ProfilePage({
   );
 
   const pendingReceived = receivedRequests.filter((request) => statusLabel(request.status).toLowerCase() === "na cekanju");
-  const threadCount = Object.keys(conversations || {}).length;
+  const localThreadCount = Object.keys(conversations || {}).length;
+  const conversationCount = acceptedCets.length || localThreadCount;
   const totalUnread = unreadCount + pendingReceived.length;
 
   const tabs = [
@@ -394,6 +406,18 @@ export default function ProfilePage({
     const dateValue = new Date(value);
     if (Number.isNaN(dateValue.getTime())) return String(value);
     return dateValue.toLocaleDateString("sr-Latn", { day: "numeric", month: "long", year: "numeric" });
+  };
+
+  const handleProfileImage = async (file) => {
+    if (!file || !uid) return;
+    try {
+      const updated = await uploadProfileImage(uid, file);
+      const merged = { ...user, ...updated };
+      localStorage.setItem("user", JSON.stringify(merged));
+      if (onUserUpdated) onUserUpdated(merged);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const renderEventList = (list, emptyText, metaFor) => (
@@ -513,14 +537,20 @@ export default function ProfilePage({
       <div className="profile-grid">
         <div>
           <div className="profile-card">
-            <div className="profile-avatar">{initialsFor(name)}</div>
+            <div className="profile-avatar profile-avatar-img">
+              {profileImage ? <img src={profileImage} alt={name} /> : initialsFor(name)}
+            </div>
+            <label className="profile-photo-btn">
+              Promijeni sliku
+              <input type="file" accept="image/*" onChange={(ev) => handleProfileImage(ev.target.files?.[0])} />
+            </label>
             <div className="profile-name">{name}</div>
             <div className="profile-email">{email}</div>
             <span className={`role-badge ${roleClasses[role]}`}>{roleLabels[role]}</span>
             <div className="profile-stats">
               <div className="profile-stat"><div className="profile-stat-val">{favoriteList.length}</div><div className="profile-stat-label">Omiljeni</div></div>
               <div className="profile-stat"><div className="profile-stat-val">{votedEvents.length}</div><div className="profile-stat-label">Glasovi</div></div>
-              <div className="profile-stat"><div className="profile-stat-val">{threadCount}</div><div className="profile-stat-label">Razgovori</div></div>
+              <div className="profile-stat"><div className="profile-stat-val">{conversationCount}</div><div className="profile-stat-label">Razgovori</div></div>
             </div>
             <div className="profile-nav">
               {tabs.map((tab) => (
@@ -601,7 +631,7 @@ export default function ProfilePage({
                             }
                           }}
                         >
-                          <div className="avatar">{initialsFor(otherName)}</div>
+                          {avatarFor(otherUser, otherName)}
                           <div className="inbox-thread-info">
                             <div className="inbox-thread-name">{otherName}</div>
                             <div className="inbox-thread-preview">{isUnread ? "Nova poruka" : (otherEmail || "Chat je aktivan")}</div>
@@ -615,7 +645,7 @@ export default function ProfilePage({
                     {activeCet ? (
                       <>
                         <div className="inbox-main-header">
-                          <div className="avatar avatar-lg">{initialsFor(activeOtherName)}</div>
+                          {avatarFor(activeOtherUser, activeOtherName, "avatar-lg")}
                           <div>
                             <div style={{ fontWeight: 600, fontSize: 15, color: G.greenDark }}>{activeOtherName}</div>
                             <div style={{ fontSize: 12, color: G.muted }}>Pođi sa mnom chat</div>

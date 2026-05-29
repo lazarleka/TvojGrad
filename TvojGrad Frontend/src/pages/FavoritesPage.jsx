@@ -59,7 +59,7 @@ export default function FavoritesPage({ navigate, user }) {
     try {
       const updated = await submitVote(eventId, userId, voteType);
       let nextEvent = updated;
-      if (previousVote && previousVote !== voteType) {
+      if (previousVote && previousVote !== voteType && updated.__usedLegacyVoteEndpoint) {
         nextEvent = await removeLegacyVote(eventId, previousVote).catch(() => updated);
       }
       const nextVotes = { ...myVotes, [eventId]: voteType };
