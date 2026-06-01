@@ -1,4 +1,0 @@
-[2m4:44:13 PM[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mThe final argument passed to useEffect changed size between renders. The order and size of this array must remain constant.
-
-Previous: [3, 2]
-Incoming: [3, , 2]

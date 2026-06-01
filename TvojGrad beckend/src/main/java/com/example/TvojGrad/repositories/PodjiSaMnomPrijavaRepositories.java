@@ -111,14 +111,14 @@ public class PodjiSaMnomPrijavaRepositories {
                     "INSERT INTO podji_sa_mnom_prijava (Tekst, Status, Korisnik_ID, Objava_ID) VALUES (?, ?, ?, ?)",
                     Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, tekst);
-            ps.setString(2, status == null || status.isBlank() ? "otvoren" : status);
+            ps.setString(2, normalizeStatus(status));
             ps.setInt(3, korisnikID);
             ps.setInt(4, objavaID);
             ps.executeUpdate();
 
             PodjiSaMnomPrijava p = new PodjiSaMnomPrijava();
             p.setTekst(tekst);
-            p.setStatus(status == null || status.isBlank() ? "otvoren" : status);
+            p.setStatus(normalizeStatus(status));
             p.setObjava_ID(objavaID);
             ResultSet rs = ps.getGeneratedKeys();
             if (rs.next()) p.setID(rs.getInt(1));
@@ -151,6 +151,32 @@ public class PodjiSaMnomPrijavaRepositories {
         } finally {
             if (conn != null) { try { conn.close(); } catch (Exception ex) { System.out.println(ex); } }
         }
+    }
+
+    public PodjiSaMnomPrijava azurirajStatus(int ID, String status) {
+        Connection conn = null;
+
+        try {
+            conn = DBUtil.open();
+            PreparedStatement ps = conn.prepareStatement("UPDATE podji_sa_mnom_prijava SET Status=? WHERE ID=?");
+            ps.setString(1, normalizeStatus(status));
+            ps.setInt(2, ID);
+            ps.executeUpdate();
+            return getPrijavaById(ID);
+        } catch (SQLException e) {
+            System.out.println(e);
+            return null;
+        } finally {
+            if (conn != null) { try { conn.close(); } catch (Exception ex) { System.out.println(ex); } }
+        }
+    }
+
+    private String normalizeStatus(String status) {
+        if (status == null || status.isBlank()) return "Otvoren";
+        String value = status.trim().toLowerCase();
+        if (value.startsWith("zatvor")) return "Zatvoren";
+        if (value.startsWith("otkaz")) return "Otkazan";
+        return "Otvoren";
     }
 
     public void obrisiPrijavu(int ID) {

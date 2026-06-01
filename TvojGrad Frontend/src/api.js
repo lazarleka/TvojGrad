@@ -57,6 +57,17 @@ export const getColorByCategory = (type) => {
   }
 };
 
+export const getEventAddress = (event) =>
+  event?.Adresa ||
+  event?.adresa ||
+  event?.ADRESA ||
+  event?.Lokacija ||
+  event?.lokacija ||
+  event?.location ||
+  event?.Grad ||
+  event?.grad ||
+  "";
+
 export const formatEvent = (event) => ({
   ...event,
   id: event.ID,
@@ -66,6 +77,8 @@ export const formatEvent = (event) => ({
   date: event.Datum,
   time: event.Vreme,
   city: event.Grad,
+  address: getEventAddress(event),
+  location: getEventAddress(event),
   category: event.Tip_dogadjaja,
   coverColor: getColorByCategory(event.Tip_dogadjaja),
   coverImg: absoluteImgSrc(event.slika_1 || event.Slika_1 || null),
@@ -175,6 +188,7 @@ export const createEvent = async (event, userId) => {
       Downvote: 0,
       Status: event.promoted ? "na_cekanju_promovisana" : "na_cekanju",
       Grad: event.city,
+      Adresa: event.address || event.location,
       Organizator_ID: userId,
       Administrator_ID: null,
       Tip_dogadjaja: event.category,

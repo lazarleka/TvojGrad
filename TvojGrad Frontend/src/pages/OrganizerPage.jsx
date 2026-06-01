@@ -68,8 +68,8 @@ export default function OrganizerPage({ user, events, addEvent, deleteEvent, pro
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Lokacija *</label>
-              <input className="form-input" placeholder="Naziv mjesta" value={form.location} onChange={set("location")} />
+              <label className="form-label">Adresa *</label>
+              <input className="form-input" placeholder="Tacna adresa mjesta" value={form.location} onChange={set("location")} />
             </div>
             <div className="form-group">
               <label className="form-label">Cijena (EUR)</label>

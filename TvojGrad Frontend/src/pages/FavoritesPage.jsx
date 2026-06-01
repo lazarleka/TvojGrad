@@ -15,7 +15,7 @@ const saveVotes = (votes) => {
   localStorage.setItem("myVotes", JSON.stringify(votes));
 };
 
-export default function FavoritesPage({ navigate, user }) {
+export default function FavoritesPage({ navigate, user, t = (key) => key, language = "SRB" }) {
   const [favEvents, setFavEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [myVotes, setMyVotes] = useState(loadVotes);
@@ -86,7 +86,7 @@ export default function FavoritesPage({ navigate, user }) {
       <div className="main">
         <div className="empty">
           <span className="empty-icon">🔒</span>
-          Prijavite se da biste vidjeli omiljene dogadjaje.
+          {t("loginForFavorites")}
         </div>
       </div>
     );
@@ -95,7 +95,7 @@ export default function FavoritesPage({ navigate, user }) {
   if (loading) {
     return (
       <div className="main">
-        <div className="empty">Ucitavanje omiljenih dogadjaja...</div>
+        <div className="empty">{t("loadingFavorites")}</div>
       </div>
     );
   }
@@ -103,8 +103,8 @@ export default function FavoritesPage({ navigate, user }) {
   return (
     <div className="main">
       <div className="page-header">
-        <div className="page-title">Moji omiljeni</div>
-        <div className="page-sub">{favEvents.length} sacuvanih dogadjaja</div>
+        <div className="page-title">{t("myFavorites")}</div>
+        <div className="page-sub">{favEvents.length} {t("savedEvents")}</div>
       </div>
       {favEvents.length > 0 ? (
         <div className="grid">
@@ -118,13 +118,15 @@ export default function FavoritesPage({ navigate, user }) {
               onDownvote={(id) => handleVote(id, "down")}
               toggleFav={handleToggleFav}
               navigate={navigate}
+              t={t}
+              language={language}
             />
           ))}
         </div>
       ) : (
         <div className="empty">
           <span className="empty-icon">♡</span>
-          Niste sacuvali nijedan omiljeni dogadjaj.
+          {t("noFavorites")}
         </div>
       )}
     </div>

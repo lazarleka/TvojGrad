@@ -3,6 +3,7 @@ import { G } from "../constants";
 import InboxPanel from "../components/InboxPanel";
 import { API_BASE_URL, absoluteImgSrc, fetchEvents, fetchUserVote, formatEvent, getUserId, uploadProfileImage } from "../api";
 import { Client } from "@stomp/stompjs";
+import { translateText } from "../i18n";
 
 const normalizeRole = (role) => {
   if (role === "organizator") return "organizer";
@@ -41,6 +42,11 @@ const statusLabel = (status) => {
   return status || "Na cekanju";
 };
 
+const requestReceiver = (request, usersById = {}) => {
+  const receiverId = request.PrimioZahtev || request.primioZahtev;
+  return request.PrimioZahtevKorisnik || request.primioZahtevKorisnik || usersById[String(receiverId)] || null;
+};
+
 export default function ProfilePage({
   user,
   events,
@@ -61,6 +67,8 @@ export default function ProfilePage({
   externalUnreadCetIds = {},
   onMarkChatRead,
   onUserUpdated,
+  t = (key) => key,
+  language = "SRB",
 }) {
   const uid = getUserId(user);
   const name = userName(user);
@@ -75,6 +83,7 @@ export default function ProfilePage({
   const [dbRequests, setDbRequests] = useState([]);
   const [dbCets, setDbCets] = useState([]);
   const [dbPrijave, setDbPrijave] = useState([]);
+  const [psmStatusSaving, setPsmStatusSaving] = useState({});
   const [activeCetId, setActiveCetId] = useState(null);
   const [chatMessages, setChatMessages] = useState({});
   const [chatInput, setChatInput] = useState("");
@@ -92,6 +101,28 @@ export default function ProfilePage({
       onUnreadMessagesChange(Object.keys(unreadCetIds).length);
     }
   }, [unreadCetIds, onUnreadMessagesChange]);
+
+  useEffect(() => {
+    if (!uid || dbCets.length === 0) return;
+    const storageKey = `openCetId:${uid}`;
+    const requestedCetId = localStorage.getItem(storageKey);
+    if (!requestedCetId) return;
+
+    const targetCet = dbCets.find((cet) => String(cet.ID) === String(requestedCetId));
+    if (!targetCet) return;
+
+    setProfileTab("inbox");
+    setActiveCetId(targetCet.ID);
+    setUnreadCetIds((prev) => {
+      const next = { ...prev };
+      delete next[targetCet.ID];
+      return next;
+    });
+    if (onMarkChatRead) {
+      onMarkChatRead(targetCet.ID, latestMessageIdForCet(targetCet.ID));
+    }
+    localStorage.removeItem(storageKey);
+  }, [uid, dbCets, setProfileTab, onMarkChatRead]);
 
   const loadProfileData = async () => {
     await Promise.all([loadFavorites(), loadVotes(), loadRequests(), loadCets(), loadPrijave()]);
@@ -130,6 +161,18 @@ export default function ProfilePage({
       if (!response.ok) return;
       const data = await response.json();
       setDbRequests(data || []);
+      const nextUsers = {};
+      (data || []).forEach((request) => {
+        const sender = request.PosloZahtev || request.posloZahtev;
+        const senderId = getUserId(sender);
+        const receiver = request.PrimioZahtevKorisnik || request.primioZahtevKorisnik;
+        const receiverId = request.PrimioZahtev || request.primioZahtev || getUserId(receiver);
+        if (senderId && sender) nextUsers[String(senderId)] = sender;
+        if (receiverId && receiver) nextUsers[String(receiverId)] = receiver;
+      });
+      if (Object.keys(nextUsers).length > 0) {
+        setUsersById((prev) => ({ ...prev, ...nextUsers }));
+      }
     } catch {
       setDbRequests([]);
     }
@@ -385,11 +428,13 @@ export default function ProfilePage({
   const localThreadCount = Object.keys(conversations || {}).length;
   const conversationCount = acceptedCets.length || localThreadCount;
   const totalUnread = unreadCount + pendingReceived.length;
+  const myPsmPrijave = dbPrijave.filter((prijava) => String(getUserId(prijava.Korisnik || prijava.korisnik)) === String(uid));
 
   const tabs = [
     { id: "favorites", label: "❤️ Omiljeni", count: favoriteList.length },
     { id: "inbox", label: "💬 Poruke i zahtjevi", count: totalUnread, badge: totalUnread > 0 },
     { id: "sent-requests", label: "📨 Poslati zahtjevi", count: sentRequests.length },
+    { id: "psm-applications", label: `🚶 ${t("psmApplications")}`, count: myPsmPrijave.length },
     { id: "votes", label: "👍 Glasovi", count: votedEvents.length },
     ...(role === "organizer" ? [{ id: "organizer", label: "➕ Moji dogadjaji" }] : []),
     ...(role === "admin" ? [{ id: "admin-link", label: "⚙️ Admin panel" }] : []),
@@ -420,12 +465,40 @@ export default function ProfilePage({
     }
   };
 
+  const eventTitleForPrijava = (prijava) => {
+    const objavaId = prijava.Objava_ID || prijava.objava_ID;
+    const related = events.find((event) => String(event.id || event.ID) === String(objavaId));
+    return translateText(related?.title || related?.Naslov || (objavaId ? `Dogadjaj #${objavaId}` : "Dogadjaj"), language);
+  };
+
+  const updatePsmPrijavaStatus = async (prijava, status) => {
+    const prijavaId = prijava.ID || prijava.id;
+    if (!prijavaId) return;
+    setPsmStatusSaving((prev) => ({ ...prev, [prijavaId]: true }));
+    try {
+      const response = await fetch(`${API_BASE_URL}/prijave/${prijavaId}/status/${encodeURIComponent(status)}`, {
+        method: "PUT",
+      });
+      if (!response.ok) throw new Error("Status nije sacuvan");
+      const updated = await response.json();
+      setDbPrijave((prev) => prev.map((item) => String(item.ID || item.id) === String(prijavaId) ? updated : item));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setPsmStatusSaving((prev) => {
+        const next = { ...prev };
+        delete next[prijavaId];
+        return next;
+      });
+    }
+  };
+
   const renderEventList = (list, emptyText, metaFor) => (
     list.length > 0 ? list.map((event) => (
       <div key={event.id || event.ID} className="my-event-item profile-event-item" style={{ cursor: "pointer" }} onClick={() => navigate("detail", event)}>
         <div className="my-event-emoji">{event.emoji || "📌"}</div>
         <div className="my-event-info">
-          <div className="my-event-title">{event.title || event.Naslov}</div>
+          <div className="my-event-title">{translateText(event.title || event.Naslov, language)}</div>
           <div className="profile-event-meta">{metaFor(event)}</div>
         </div>
       </div>
@@ -434,18 +507,23 @@ export default function ProfilePage({
 
   const renderRequest = (request, mode) => {
     const sender = request.PosloZahtev || request.posloZahtev;
-    const senderName = userName(sender);
-    const senderInitials = initialsFor(senderName);
+    const receiver = requestReceiver(request, usersById);
+    const displayUser = mode === "sent" ? receiver : sender;
+    const fallbackName = mode === "sent" && request.PrimioZahtev ? `Korisnik #${request.PrimioZahtev}` : "Korisnik";
+    const displayName = displayUser ? userName(displayUser) : fallbackName;
+    const displayEmail = displayUser?.Email || displayUser?.email || "";
     const currentStatus = statusLabel(request.status);
     const isPending = currentStatus.toLowerCase() === "na cekanju";
     const isAccepted = currentStatus.toLowerCase() === "prihvacen";
 
     return (
       <div key={request.ID} className="request-card">
-        <div className="avatar">{senderInitials}</div>
+        {avatarFor(displayUser, displayName)}
         <div className="request-info">
-          <div className="request-name">{mode === "sent" ? `Za korisnika #${request.PrimioZahtev}` : senderName}</div>
-          <div className="request-meta">Status: {currentStatus}</div>
+          <div className="request-name">{displayName}</div>
+          <div className="request-meta">
+            {displayEmail ? `${displayEmail} · ` : ""}Status: {currentStatus}
+          </div>
         </div>
         {mode === "received" && isPending && (
           <div className="request-actions">
@@ -695,6 +773,48 @@ export default function ProfilePage({
               ) : (
                 <div style={{ color: G.muted, fontSize: 14, textAlign: "center", padding: "1.5rem" }}>
                   Nemate poslatih zahtjeva.
+                </div>
+              )}
+            </div>
+          )}
+
+          {profileTab === "psm-applications" && (
+            <div className="form-card">
+              <h3>{t("psmApplications")} ({myPsmPrijave.length})</h3>
+              {myPsmPrijave.length > 0 ? (
+                <div className="request-list" style={{ marginBottom: 0 }}>
+                  {myPsmPrijave.map((prijava) => {
+                    const prijavaId = prijava.ID || prijava.id;
+                    const status = prijava.Status || prijava.status || "Otvoren";
+                    const saving = Boolean(psmStatusSaving[prijavaId]);
+                    const isOpen = status.toLowerCase().startsWith("otvoren");
+                    return (
+                      <div key={prijavaId} className="request-card">
+                        <div className="request-info">
+                          <div className="request-name">{eventTitleForPrijava(prijava)}</div>
+                          <div className="request-meta">Status: {status} · {prijava.Tekst || prijava.tekst || "/"}</div>
+                        </div>
+                        <div className="request-actions">
+                          {isOpen ? (
+                            <button className="action-btn action-delete" disabled={saving} onClick={() => updatePsmPrijavaStatus(prijava, "Zatvoren")}>
+                              {t("archive")}
+                            </button>
+                          ) : (
+                            <button className="action-btn action-approve" disabled={saving} onClick={() => updatePsmPrijavaStatus(prijava, "Otvoren")}>
+                              {t("reopen")}
+                            </button>
+                          )}
+                          <button className="action-btn action-reject" disabled={saving} onClick={() => updatePsmPrijavaStatus(prijava, "Otkazan")}>
+                            {t("cancel")}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ color: G.muted, fontSize: 14, textAlign: "center", padding: "1.5rem" }}>
+                  Nemate prijava za "Podji sa mnom".
                 </div>
               )}
             </div>

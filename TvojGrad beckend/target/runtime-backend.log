@@ -1,0 +1,28 @@
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.3)
+
+2026-06-01T23:59:13.855+02:00  INFO 29176 --- [TvojGrad] [           main] c.example.TvojGrad.TvojGradApplication   : Starting TvojGradApplication using Java 17.0.19 with PID 29176 (T:\target\classes started by User in T:\)
+2026-06-01T23:59:13.868+02:00  INFO 29176 --- [TvojGrad] [           main] c.example.TvojGrad.TvojGradApplication   : No active profile set, falling back to 1 default profile: "default"
+2026-06-01T23:59:15.258+02:00  INFO 29176 --- [TvojGrad] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-06-01T23:59:15.273+02:00  INFO 29176 --- [TvojGrad] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-06-01T23:59:15.273+02:00  INFO 29176 --- [TvojGrad] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.18]
+2026-06-01T23:59:15.330+02:00  INFO 29176 --- [TvojGrad] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1365 ms
+2026-06-01T23:59:15.976+02:00  INFO 29176 --- [TvojGrad] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-06-01T23:59:15.979+02:00  INFO 29176 --- [TvojGrad] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@21b6c9c2]]
+2026-06-01T23:59:15.980+02:00  INFO 29176 --- [TvojGrad] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-06-01T23:59:16.016+02:00  INFO 29176 --- [TvojGrad] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-06-01T23:59:16.022+02:00  INFO 29176 --- [TvojGrad] [           main] c.example.TvojGrad.TvojGradApplication   : Started TvojGradApplication in 2.825 seconds (process running for 3.253)
+2026-06-01T23:59:16.205+02:00  INFO 29176 --- [TvojGrad] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-06-01T23:59:16.209+02:00  INFO 29176 --- [TvojGrad] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-06-01T23:59:16.211+02:00  INFO 29176 --- [TvojGrad] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
+java.sql.SQLSyntaxErrorException: Can't DROP 'objava_ibfk_4'; check that column/key exists
+java.sql.SQLIntegrityConstraintViolationException: Cannot add or update a child row: a foreign key constraint fails (`tvojgrad`.`#sql-2510_2ef0`, CONSTRAINT `objava_ibfk_4` FOREIGN KEY (`Tip_dogadjaja`) REFERENCES `tip` (`Naziv`))
+2026-06-02T00:00:15.982+02:00  INFO 29176 --- [TvojGrad] [MessageBroker-8] o.s.w.s.c.WebSocketMessageBrokerStats    : WebSocketSession[2 current WS(2)-HttpStream(0)-HttpPoll(0), 2 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(2)-CONNECTED(2)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 16, active threads = 0, queued tasks = 0, completed tasks = 39], outboundChannel[pool size = 2, active threads = 0, queued tasks = 0, completed tasks = 2], sockJsScheduler[pool size = 8, active threads = 1, queued tasks = 3, completed tasks = 16]
+Uspjesno dodat omiljeni dogadjaj

@@ -22,6 +22,7 @@ public class DogadjajRepositories {
                 rs.getInt("Downvote"),
                 rs.getString("Status"),
                 rs.getString("Grad"),
+                getOptionalString(rs, "Adresa", null),
                 rs.getInt("Organizator_ID"),
                 getOptionalString(rs, "Organizator", null),
                 rs.getInt("Administrator_ID"),
@@ -141,7 +142,7 @@ public class DogadjajRepositories {
         try {
             conn = DBUtil.open();
             // Dodata kolona Cijena i još jedan upitnik (?) na kraj
-            String sql = "INSERT INTO objava (Naslov, Opis, Datum, Vreme, Upvote, Downvote, Status, Grad, Organizator_ID, Administrator_ID, Tip_dogadjaja, slika_1, Emoji, Cijena) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            String sql = "INSERT INTO objava (Naslov, Opis, Datum, Vreme, Upvote, Downvote, Status, Grad, Adresa, Organizator_ID, Administrator_ID, Tip_dogadjaja, slika_1, Emoji, Cijena) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, dogadjaj.getNaslov());
             ps.setString(2, dogadjaj.getOpis());
@@ -155,12 +156,13 @@ public class DogadjajRepositories {
                     : "na_cekanju";
             ps.setString(7, status);
             ps.setString(8, dogadjaj.getGrad());
-            ps.setObject(9, dogadjaj.getOrganizator_ID());
-            ps.setObject(10, dogadjaj.getAdministrator_ID());
-            ps.setString(11, dogadjaj.getTip_dogadjaja());
-            ps.setString(12, dogadjaj.getSlika_1());
-            ps.setString(13, dogadjaj.getEmoji());
-            ps.setObject(14, dogadjaj.getCijena()); // Dodat upis cijene (indeks 14)
+            ps.setString(9, dogadjaj.getAdresa());
+            ps.setObject(10, dogadjaj.getOrganizator_ID());
+            ps.setObject(11, dogadjaj.getAdministrator_ID());
+            ps.setString(12, dogadjaj.getTip_dogadjaja());
+            ps.setString(13, dogadjaj.getSlika_1());
+            ps.setString(14, dogadjaj.getEmoji());
+            ps.setObject(15, dogadjaj.getCijena());
             ps.executeUpdate();
 
             ResultSet rs = ps.getGeneratedKeys();
@@ -186,7 +188,7 @@ public class DogadjajRepositories {
         try {
             conn = DBUtil.open();
             // Dodato ažuriranje kolone Cijena=?
-            String sql = "UPDATE objava SET Naslov=?, Opis=?, Datum=?, Vreme=?, Upvote=?, Downvote=?, Status=?, Grad=?, Organizator_ID=?, Administrator_ID=?, Tip_dogadjaja=?, slika_1=?, Emoji=?, Cijena=? WHERE ID=?";
+            String sql = "UPDATE objava SET Naslov=?, Opis=?, Datum=?, Vreme=?, Upvote=?, Downvote=?, Status=?, Grad=?, Adresa=?, Organizator_ID=?, Administrator_ID=?, Tip_dogadjaja=?, slika_1=?, Emoji=?, Cijena=? WHERE ID=?";
             PreparedStatement ps = conn.prepareStatement(sql);
             ps.setString(1, d.getNaslov());
             ps.setString(2, d.getOpis());
@@ -196,13 +198,14 @@ public class DogadjajRepositories {
             ps.setObject(6, d.getDownvote());
             ps.setString(7, d.getStatus());
             ps.setString(8, d.getGrad());
-            ps.setObject(9, d.getOrganizator_ID());
-            ps.setObject(10, d.getAdministrator_ID());
-            ps.setString(11, d.getTip_dogadjaja());
-            ps.setString(12, d.getSlika_1());
-            ps.setString(13, d.getEmoji());
-            ps.setObject(14, d.getCijena()); // Dodato ažuriranje cijene (indeks 14)
-            ps.setInt(15, ID); // Pomjereno na indeks 15 zbog dodavanja cijene
+            ps.setString(9, d.getAdresa());
+            ps.setObject(10, d.getOrganizator_ID());
+            ps.setObject(11, d.getAdministrator_ID());
+            ps.setString(12, d.getTip_dogadjaja());
+            ps.setString(13, d.getSlika_1());
+            ps.setString(14, d.getEmoji());
+            ps.setObject(15, d.getCijena());
+            ps.setInt(16, ID);
             ps.executeUpdate();
             return d;
         } catch (SQLException s) {

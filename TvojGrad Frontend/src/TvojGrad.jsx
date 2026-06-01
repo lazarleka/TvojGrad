@@ -11,6 +11,7 @@ import AuthPage from "./pages/AuthPage";
 import ProfilePage from "./pages/ProfilePage";
 import OrganizerPage from "./pages/OrganizerPage";
 import AdminPage from "./pages/AdminPage";
+import { makeT } from "./i18n";
 import {
   API_BASE_URL,
   approveAdminRequest,
@@ -93,6 +94,10 @@ export default function TvojGrad() {
   const [city, setCity] = useState("Svi gradovi");
   const [search, setSearch] = useState("");
   const [date, setDate] = useState("");
+  const [language, setLanguage] = useState(() => {
+    const saved = localStorage.getItem("language");
+    return saved === "ENG" || saved === "SRB" ? saved : "SRB";
+  });
   const [cities, setCities] = useState(["Svi gradovi"]);
   const [adminRequests, setAdminRequests] = useState([]);
   const [psmRequests, setPsmRequests] = useState({});
@@ -112,6 +117,7 @@ export default function TvojGrad() {
   const backendUnreadMessages = Object.keys(backendUnreadCetIds).length;
   const unreadCount = Object.values(userConversations).filter((c) => c.unread).length + incomingRequests.length + backendUnreadMessages;
   const backendUserId = getUserId(user);
+  const t = makeT(language);
   const userRole = user?.role || user?.tip || user?.Tip;
   const userName = user?.name || user?.ime || user?.Ime || `${user?.Ime || ""} ${user?.Prezime || ""}`.trim();
 
@@ -342,6 +348,11 @@ export default function TvojGrad() {
     } catch {
       toast("Slika nije sacuvana");
     }
+  };
+
+  const updateLanguage = (nextLanguage) => {
+    setLanguage(nextLanguage);
+    localStorage.setItem("language", nextLanguage);
   };
 
   const approveEvent = async (id) => {
@@ -585,7 +596,7 @@ export default function TvojGrad() {
       if (
         search &&
         !e.title.toLowerCase().includes(search.toLowerCase()) &&
-        !e.location.toLowerCase().includes(search.toLowerCase())
+        !(e.address || "").toLowerCase().includes(search.toLowerCase())
       )
         return false;
       return true;
@@ -611,6 +622,9 @@ export default function TvojGrad() {
           setUser={updateUser}
           toast={toast}
           unreadCount={unreadCount}
+          language={language}
+          setLanguage={updateLanguage}
+          t={t}
         />
 
         {page === "home" && (
@@ -629,11 +643,13 @@ export default function TvojGrad() {
             vote={vote}
             toggleFav={toggleFav}
             navigate={navigate}
+            t={t}
+            language={language}
           />
         )}
-        {page === "popular" && <PopularPage events={popularEvents} navigate={navigate} />}
+        {page === "popular" && <PopularPage events={popularEvents} navigate={navigate} t={t} language={language} />}
         {page === "favorites" && (
-          <FavoritesPage events={favEvents} navigate={navigate} vote={vote} toggleFav={toggleFav} user={user} />
+          <FavoritesPage events={favEvents} navigate={navigate} vote={vote} toggleFav={toggleFav} user={user} t={t} language={language} />
         )}
         {page === "detail" && detailEvent && (
           <DetailPage
@@ -643,6 +659,8 @@ export default function TvojGrad() {
             toggleFav={toggleFav}
             user={user}
             toast={toast}
+            t={t}
+            language={language}
             psmRequests={psmRequests}
             psmListings={psmListings}
             toggleLookingForCompany={toggleLookingForCompany}
@@ -684,6 +702,8 @@ export default function TvojGrad() {
             externalUnreadCetIds={backendUnreadCetIds}
             onMarkChatRead={markBackendChatRead}
             onUserUpdated={updateUser}
+            t={t}
+            language={language}
           />
         )}
         {page === "organizer" && userRole === "organizator" && (

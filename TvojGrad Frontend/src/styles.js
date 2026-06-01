@@ -25,6 +25,9 @@ export const css = `
   .nav-link.cta:hover{background:${G.greenDark}}
   .nav-badge{background:${G.danger};color:#fff;font-size:10px;font-weight:700;width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-left:2px}
   .nav-user{display:flex;align-items:center;gap:8px;padding:5px 12px;border-radius:20px;background:${G.greenLight};cursor:pointer;font-size:13px;font-weight:500;color:${G.greenDark};border:none;font-family:'DM Sans',sans-serif}
+  .language-tabs{display:flex;align-items:center;gap:2px;border:1px solid ${G.border};background:#fff;border-radius:10px;padding:3px;margin-left:6px}
+  .language-tab{border:none;background:transparent;color:${G.muted};border-radius:7px;padding:5px 9px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:800;cursor:pointer}
+  .language-tab.active{background:${G.green};color:#fff}
 
   /* HERO */
   .hero{background:linear-gradient(135deg,${G.greenDark} 0%,${G.green} 60%,${G.greenMid} 100%);padding:4rem 2rem 3rem;text-align:center;position:relative;overflow:hidden}
@@ -36,8 +39,11 @@ export const css = `
   .search-field{height:42px;border:none;outline:none;font-size:14px;font-family:'DM Sans',sans-serif;color:${G.ink};background:${G.paper};border-radius:10px;padding:0 12px}
   .search-text{background:#fff}
   .search-select{cursor:pointer;color:${G.muted}}
-  .search-date{height:42px;display:flex;align-items:center;gap:8px;background:${G.greenLight};border:1px solid rgba(29,158,117,0.24);border-radius:10px;padding:0 10px;color:${G.greenDark};font-size:12px;font-weight:700;white-space:nowrap}
-  .search-date input{min-width:0;width:100%;border:none;outline:none;background:transparent;color:${G.greenDark};font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer}
+  .search-date{height:42px;display:flex;align-items:center;background:${G.paper};border:none;border-radius:10px;padding:0 12px;color:${G.muted};font-size:14px;font-weight:500;white-space:nowrap;position:relative;overflow:hidden;cursor:pointer}
+  .search-date.has-value{color:${G.ink}}
+  .search-date span{position:relative;z-index:1;pointer-events:none}
+  .search-date input{position:absolute;inset:0;width:100%;height:100%;border:none;outline:none;background:transparent;color:transparent;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;opacity:0}
+  .search-date input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;cursor:pointer;opacity:0}
   .filter-chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;position:relative}
   .chip{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:6px 16px;font-size:13px;cursor:pointer;color:#fff;transition:all 0.15s;font-family:'DM Sans',sans-serif;font-weight:500}
   .chip:hover,.chip.active{background:#fff;color:${G.greenDark};border-color:#fff}
@@ -289,6 +295,25 @@ export const css = `
   .empty{text-align:center;padding:3rem;color:${G.muted}}
   .empty-icon{font-size:48px;display:block;margin-bottom:1rem}
 
+  /* MAP */
+  .event-map-section{margin-top:2.25rem}
+  .event-map-layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:1rem;align-items:stretch}
+  .event-map-layout.map-only{grid-template-columns:1fr}
+  .event-map-frame{min-height:420px;border:1px solid ${G.border};border-radius:16px;overflow:hidden;background:#fff;position:relative}
+  .event-map-canvas{position:absolute;inset:0;z-index:1}
+  .event-map-loading{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;background:#fff;color:${G.muted};font-size:14px}
+  .event-leaflet-pin{background:transparent;border:none}
+  .event-leaflet-pin span{width:22px;height:22px;background:${G.green};border:3px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:block;box-shadow:0 6px 14px rgba(8,80,65,0.28)}
+  .event-leaflet-pin span::after{content:'';position:absolute;width:6px;height:6px;border-radius:50%;background:#fff;left:50%;top:50%;transform:translate(-50%,-50%)}
+  .leaflet-popup-content{font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.45;color:${G.ink}}
+  .leaflet-popup-content strong{color:${G.greenDark};font-size:14px}
+  .event-map-list{display:flex;flex-direction:column;gap:8px;max-height:380px;overflow:auto}
+  .event-map-item{width:100%;text-align:left;background:#fff;border:1px solid ${G.border};border-radius:12px;padding:12px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s}
+  .event-map-item:hover,.event-map-item.active{border-color:${G.green};background:${G.greenLight}}
+  .event-map-name{display:block;font-size:14px;font-weight:700;color:${G.ink};line-height:1.35}
+  .event-map-address{display:block;font-size:12px;color:${G.muted};margin-top:4px;line-height:1.4}
+  .event-map-city{display:inline-flex;margin-top:8px;border-radius:999px;background:#fff;color:${G.greenDark};font-size:11px;font-weight:700;padding:3px 8px}
+
   @media (max-width: 820px){
     .nav{height:auto;min-height:60px;padding:0.7rem 1rem;align-items:stretch;gap:0;flex-direction:column}
     .nav-top{width:100%}
@@ -302,6 +327,9 @@ export const css = `
     .hero-sub{font-size:15px}
     .search-wrap{grid-template-columns:1fr;max-width:100%;border-radius:14px;padding:12px}
     .search-field,.search-date{width:100%;min-height:42px}
+    .event-map-layout{grid-template-columns:1fr}
+    .event-map-frame{min-height:340px}
+    .event-map-list{max-height:260px}
     .main{padding:1rem}
     .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:0.75rem}
     .card{border-radius:12px}

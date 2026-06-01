@@ -38,6 +38,7 @@ public class OmiljeniDogadjajRepositories {
                         rs.getInt("Downvote"),
                         rs.getString("Status"),
                         rs.getString("Grad"),
+                        getOptionalString(rs, "Adresa", null),
                         rs.getInt("Organizator_ID"),
                         rs.getInt("Administrator_ID"),
                         rs.getString("Tip_dogadjaja"),
@@ -77,6 +78,15 @@ public class OmiljeniDogadjajRepositories {
                 try { conn.close(); }
                 catch (Exception ex) { System.out.println(ex); }
             }
+        }
+    }
+
+    private String getOptionalString(ResultSet rs, String columnName, String fallback) {
+        try {
+            String value = rs.getString(columnName);
+            return value != null ? value : fallback;
+        } catch (SQLException e) {
+            return fallback;
         }
     }
 

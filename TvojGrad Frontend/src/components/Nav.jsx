@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function Nav({ page, navigate, user, setUser, toast, unreadCount }) {
+export default function Nav({ page, navigate, user, setUser, toast, unreadCount, language = "SRB", setLanguage, t = (key) => key }) {
   const korisnikTip = user?.tip || user?.Tip;
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -40,41 +40,54 @@ export default function Nav({ page, navigate, user, setUser, toast, unreadCount 
         </button>
       </div>
       <div className={`nav-links${menuOpen ? " open" : ""}`}>
-        <button data-icon="⌂" className={`nav-link${page === "home" ? " active" : ""}`} onClick={() => go("home")}>
-          Dogadjaji
+        <button className={`nav-link${page === "home" ? " active" : ""}`} onClick={() => go("home")}>
+          {t("events")}
         </button>
-        <button data-icon="◎" className={`nav-link${page === "popular" ? " active" : ""}`} onClick={() => go("popular")}>
-          Popularno
+        <button className={`nav-link${page === "popular" ? " active" : ""}`} onClick={() => go("popular")}>
+          {t("popular")}
         </button>
-        <button data-icon="♡" className={`nav-link${page === "favorites" ? " active" : ""}`} onClick={() => go("favorites")}>
-          Omiljeni
+        <button className={`nav-link${page === "favorites" ? " active" : ""}`} onClick={() => go("favorites")}>
+          {t("favorites")}
         </button>
 
         {user && (
-          <button data-icon="○" className={`nav-link${page === "profile" ? " active" : ""}`} onClick={() => go("profile")}>
-            Profil {unreadCount > 0 && <span className="nav-badge">{unreadCount}</span>}
+          <button className={`nav-link${page === "profile" ? " active" : ""}`} onClick={() => go("profile")}>
+            {t("profile")} {unreadCount > 0 && <span className="nav-badge">{unreadCount}</span>}
           </button>
         )}
 
         {korisnikTip === "organizator" && (
-          <button data-icon="+" className={`nav-link${page === "organizer" ? " active" : ""}`} onClick={() => go("organizer")}>
-            Moji dogadjaji
+          <button className={`nav-link${page === "organizer" ? " active" : ""}`} onClick={() => go("organizer")}>
+            {t("myEvents")}
           </button>
         )}
 
         {korisnikTip === "administrator" && (
-          <button data-icon="⚙" className={`nav-link${page === "admin" ? " active" : ""}`} onClick={() => go("admin")}>
-            Admin
+          <button className={`nav-link${page === "admin" ? " active" : ""}`} onClick={() => go("admin")}>
+            {t("admin")}
           </button>
         )}
 
+        <div className="language-tabs" aria-label="Language">
+          {["SRB", "ENG"].map((code) => (
+            <button
+              key={code}
+              className={`language-tab${language === code ? " active" : ""}`}
+              onClick={() => setLanguage && setLanguage(code)}
+              type="button"
+            >
+              {code}
+            </button>
+          ))}
+        </div>
+
         {user ? (
-          <button data-icon="×" className="nav-link" onClick={logout}>
-            Odjava
+          <button className="nav-link" onClick={logout}>
+            {t("logout")}
           </button>
         ) : (
-          <button data-icon="↳" className="nav-link cta" onClick={() => go("auth")}>
-            Prijava
+          <button className="nav-link cta" onClick={() => go("auth")}>
+            {t("login")}
           </button>
         )}
       </div>

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { CATEGORIES, CITIES } from "../constants";
 import EventCard from "../components/EventCard";
+import EventMap from "../components/EventMap";
 import { API_BASE_URL, fetchEvents, fetchUserVote, getStoredUser, getUserId, removeLegacyVote, submitVote } from "../api";
+import { dateLocale, translateText } from "../i18n";
 
 const loadVotes = () => {
   try {
@@ -16,7 +18,7 @@ const saveVotes = (votes) => {
   localStorage.setItem("myVotes", JSON.stringify(votes));
 };
 
-export default function HomePage({ category, setCategory, city, setCity, search, setSearch, date, setDate, cities = CITIES, navigate }) {
+export default function HomePage({ category, setCategory, city, setCity, search, setSearch, date, setDate, cities = CITIES, navigate, t = (key) => key, language = "SRB" }) {
   const [currentUser] = useState(getStoredUser);
   const [dbEvents, setDbEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -137,12 +139,12 @@ export default function HomePage({ category, setCategory, city, setCity, search,
   return (
     <>
       <div className="hero">
-        <h1 className="hero-title">Tvoj grad,<br /><em>tvoja desavanja</em></h1>
-        <p className="hero-sub">Svi dogadjaji u jednom mjestu. Pronadji, prati i podji zajedno!</p>
+        <h1 className="hero-title">{t("heroTitleA")}<br /><em>{t("heroTitleB")}</em></h1>
+        <p className="hero-sub">{t("heroSub")}</p>
         <div className="search-wrap">
           <input
             className="search-field search-text"
-            placeholder="Pretrazi dogadjaje..."
+            placeholder={t("searchEvents")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -151,10 +153,10 @@ export default function HomePage({ category, setCategory, city, setCity, search,
             value={city}
             onChange={(e) => setCity(e.target.value)}
           >
-            {cities.map((c) => <option key={c}>{c}</option>)}
+            {cities.map((c) => <option key={c} value={c}>{translateText(c, language)}</option>)}
           </select>
-          <label className="search-date">
-            <span>Datum</span>
+          <label className={`search-date${date ? " has-value" : ""}`}>
+            <span>{date ? new Date(date).toLocaleDateString(dateLocale(language), { day: "numeric", month: "short" }) : t("date")}</span>
             <input
               type="date"
               aria-label="Datum dogadjaja"
@@ -165,7 +167,7 @@ export default function HomePage({ category, setCategory, city, setCity, search,
         </div>
         <div className="filter-chips">
           {CATEGORIES.map((c) => (
-            <span key={c} className={`chip${category === c ? " active" : ""}`} onClick={() => setCategory(c)}>{c}</span>
+            <span key={c} className={`chip${category === c ? " active" : ""}`} onClick={() => setCategory(c)}>{translateText(c, language)}</span>
           ))}
         </div>
       </div>
@@ -174,7 +176,7 @@ export default function HomePage({ category, setCategory, city, setCity, search,
         {promotedEvents.length > 0 && (
           <>
             <div className="section-header">
-              <span className="section-title">Promovisano</span>
+              <span className="section-title">{t("promoted")}</span>
             </div>
             <div className="grid">
               {promotedEvents.slice(0, 3).map((e) => (
@@ -187,6 +189,8 @@ export default function HomePage({ category, setCategory, city, setCity, search,
                   onDownvote={(id) => handleVote(id, "down")}
                   toggleFav={handleToggleFav}
                   navigate={navigate}
+                  t={t}
+                  language={language}
                 />
               ))}
             </div>
@@ -195,8 +199,8 @@ export default function HomePage({ category, setCategory, city, setCity, search,
         )}
 
         <div className="section-header">
-          <span className="section-title">Svi dogadjaji</span>
-          <span className="section-sub">{filteredEvents.length} dogadjaja</span>
+          <span className="section-title">{t("allEvents")}</span>
+          <span className="section-sub">{filteredEvents.length} {t("eventCount")}</span>
         </div>
         {filteredEvents.length > 0 ? (
           <div className="grid">
@@ -210,15 +214,18 @@ export default function HomePage({ category, setCategory, city, setCity, search,
                 onDownvote={(id) => handleVote(id, "down")}
                 toggleFav={handleToggleFav}
                 navigate={navigate}
+                t={t}
+                language={language}
               />
             ))}
           </div>
         ) : (
           <div className="empty">
             <span className="empty-icon">:(</span>
-            Nema dogadjaja koji odgovaraju filterima.
+            {t("noEvents")}
           </div>
         )}
+        <EventMap events={filteredEvents} title={t("eventsOnMap")} language={language} />
       </div>
     </>
   );

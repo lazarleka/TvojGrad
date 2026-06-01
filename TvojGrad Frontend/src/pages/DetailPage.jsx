@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { G } from "../constants";
-import { API_BASE_URL, fetchUserVote, getStoredUser, getUserId, removeLegacyVote, submitVote } from "../api";
+import EventMap from "../components/EventMap";
+import { API_BASE_URL, fetchUserVote, getEventAddress, getStoredUser, getUserId, removeLegacyVote, submitVote } from "../api";
+import { dateLocale, translateText } from "../i18n";
 
-export default function DetailPage({ event: e, navigate, toast }) {
+export default function DetailPage({ event: e, navigate, toast, t = (key) => key, language = "SRB" }) {
   const [currentUser] = useState(getStoredUser);
   const [isFav, setIsFav] = useState(false);
   const [myVote, setMyVote] = useState(null);
@@ -11,6 +13,8 @@ export default function DetailPage({ event: e, navigate, toast }) {
   const [psmPrijave, setPsmPrijave] = useState([]);
   const [psmLoading, setPsmLoading] = useState(false);
   const [sentPsmRequests, setSentPsmRequests] = useState({});
+  const [cetsByUser, setCetsByUser] = useState({});
+  const [sendingPsmRequests, setSendingPsmRequests] = useState({});
 
   const isLoggedIn = Boolean(currentUser);
   const uid = getUserId(currentUser);
@@ -39,9 +43,10 @@ export default function DetailPage({ event: e, navigate, toast }) {
   useEffect(() => {
     if (!uid) {
       setSentPsmRequests({});
+      setCetsByUser({});
       return;
     }
-    loadSentPsmRequests();
+    loadPsmRelations();
   }, [uid]);
 
   const loadPsmPrijave = async () => {
@@ -59,22 +64,43 @@ export default function DetailPage({ event: e, navigate, toast }) {
     }
   };
 
-  const loadSentPsmRequests = async () => {
+  const loadPsmRelations = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/zahtevi`);
-      if (!response.ok) return;
-      const data = await response.json();
+      const [requestsResponse, cetsResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/zahtevi`),
+        fetch(`${API_BASE_URL}/cetovi/korisnik/${uid}`),
+      ]);
+
       const sent = {};
-      (data || []).forEach((zahtev) => {
-        const senderId = getUserId(zahtev.PosloZahtev || zahtev.posloZahtev);
-        const receiverId = zahtev.PrimioZahtev || zahtev.primioZahtev;
-        if (String(senderId) === String(uid) && receiverId) {
-          sent[String(receiverId)] = true;
-        }
-      });
+      if (requestsResponse.ok) {
+        const requests = await requestsResponse.json();
+        (requests || []).forEach((zahtev) => {
+          const senderId = getUserId(zahtev.PosloZahtev || zahtev.posloZahtev);
+          const receiverId = zahtev.PrimioZahtev || zahtev.primioZahtev;
+          if (String(senderId) === String(uid) && receiverId) {
+            sent[String(receiverId)] = zahtev;
+          }
+          if (String(receiverId) === String(uid) && senderId) {
+            sent[String(senderId)] = zahtev;
+          }
+        });
+      }
+
+      const cets = {};
+      if (cetsResponse.ok) {
+        const data = await cetsResponse.json();
+        (data || []).forEach((cet) => {
+          const senderId = getUserId(cet.Posiljalac || cet.posiljalac);
+          const receiverId = cet.Primalac_ID || cet.primalac_ID || getUserId(cet.Primalac || cet.primalac);
+          const otherId = String(senderId) === String(uid) ? receiverId : senderId;
+          if (otherId) cets[String(otherId)] = cet;
+        });
+      }
       setSentPsmRequests(sent);
+      setCetsByUser(cets);
     } catch {
       setSentPsmRequests({});
+      setCetsByUser({});
     }
   };
 
@@ -92,6 +118,7 @@ export default function DetailPage({ event: e, navigate, toast }) {
   const datum = event.date || event.Datum;
   const vreme = event.time || event.Vreme;
   const grad = event.city || event.Grad;
+  const address = getEventAddress(event);
   const tip = event.Tip_dogadjaja || event.category;
   const organizer = event.organizer || event.Organizator;
   const emoji = event.emoji || event.Emoji || "📌";
@@ -213,12 +240,18 @@ export default function DetailPage({ event: e, navigate, toast }) {
       toast && toast("Ne mozete poslati zahtjev sebi.");
       return;
     }
-    if (sentPsmRequests[String(targetId)]) {
-      toast && toast("Zahtjev je vec poslat.");
+    if (cetsByUser[String(targetId)]?.ID) {
+      openExistingCet(cetsByUser[String(targetId)]);
       return;
     }
+    if (sentPsmRequests[String(targetId)]) {
+      toast && toast("Vec imate zahtjev ka ovoj osobi.");
+      return;
+    }
+    if (sendingPsmRequests[String(targetId)]) return;
 
     try {
+      setSendingPsmRequests((prev) => ({ ...prev, [String(targetId)]: true }));
       const response = await fetch(`${API_BASE_URL}/zahtevi`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -234,15 +267,28 @@ export default function DetailPage({ event: e, navigate, toast }) {
       const savedSenderId = getUserId(savedRequest.PosloZahtev || savedRequest.posloZahtev);
       const savedReceiverId = savedRequest.PrimioZahtev || savedRequest.primioZahtev;
       if (String(savedSenderId) === String(uid) && String(savedReceiverId) === String(targetId)) {
-        setSentPsmRequests((prev) => ({ ...prev, [String(targetId)]: true }));
+        setSentPsmRequests((prev) => ({ ...prev, [String(targetId)]: savedRequest }));
         toast && toast("Zahtjev je poslat.");
       } else {
+        setSentPsmRequests((prev) => ({ ...prev, [String(targetId)]: savedRequest }));
         toast && toast("Vec postoji zahtjev od tog korisnika.");
       }
     } catch (err) {
       console.error(err);
       toast && toast("Zahtjev nije poslat.");
+    } finally {
+      setSendingPsmRequests((prev) => {
+        const next = { ...prev };
+        delete next[String(targetId)];
+        return next;
+      });
     }
+  };
+
+  const openExistingCet = (cet) => {
+    if (!cet?.ID || !uid) return;
+    localStorage.setItem(`openCetId:${uid}`, String(cet.ID));
+    navigate("profile", null, { profileTab: "inbox" });
   };
 
   const psmApplicants = psmPrijave.map((prijava) => ({
@@ -260,7 +306,7 @@ export default function DetailPage({ event: e, navigate, toast }) {
   return (
     <div className="main">
       <button className="detail-back" onClick={() => navigate("home")}>
-        Nazad na dogadjaje
+        {t("backToEvents")}
       </button>
 
       <div className="detail-hero">
@@ -277,12 +323,12 @@ export default function DetailPage({ event: e, navigate, toast }) {
         )}
         <div className="detail-hero-overlay" />
         <div className="detail-hero-content">
-          <span className="detail-cat">{tip}</span>
-          <div className="detail-title">{title}</div>
+          <span className="detail-cat">{translateText(tip, language)}</span>
+          <div className="detail-title">{translateText(title, language)}</div>
           <div className="detail-hero-meta">
-            <span>{datum ? new Date(datum).toLocaleDateString("sr-Latn", { day: "numeric", month: "long", year: "numeric" }) : "/"}</span>
+            <span>{datum ? new Date(datum).toLocaleDateString(dateLocale(language), { day: "numeric", month: "long", year: "numeric" }) : "/"}</span>
             <span>{vreme || "/"}</span>
-            <span>{grad || "/"}</span>
+            <span>{translateText(grad, language) || "/"}</span>
           </div>
           {event.promoted && (
             <span style={{
@@ -299,14 +345,14 @@ export default function DetailPage({ event: e, navigate, toast }) {
       <div className="detail-grid">
         <div>
           <div className="detail-card">
-            <h3>O dogadjaju</h3>
+            <h3>{t("aboutEvent")}</h3>
             <p style={{ fontSize: 14, color: G.muted, lineHeight: 1.7 }}>
-              {opis || "Nema opisa za ovaj dogadjaj."}
+              {translateText(opis, language) || "Nema opisa za ovaj dogadjaj."}
             </p>
           </div>
 
           <div className="detail-card" style={{ marginTop: 16 }}>
-            <h3>Podji sa mnom</h3>
+            <h3>{t("psm")}</h3>
             <p style={{ fontSize: 14, color: G.muted, lineHeight: 1.6, marginTop: 0 }}>
               Prijavi se ako trazis drustvo za ovaj dogadjaj ili posalji zahtjev nekome ko se vec prijavio.
             </p>
@@ -379,7 +425,9 @@ export default function DetailPage({ event: e, navigate, toast }) {
                   ) : psmApplicants.length > 0 ? (
                     psmApplicants.map(({ prijava, korisnik }) => {
                       const applicantId = getPrijavaUserId(prijava, korisnik);
+                      const existingCet = cetsByUser[String(applicantId)];
                       const requestSent = Boolean(sentPsmRequests[String(applicantId)]);
+                      const requestSending = Boolean(sendingPsmRequests[String(applicantId)]);
                       const applicantClosed = isClosedStatus(prijava.Status || prijava.status);
                       const fullName = `${korisnik?.Ime || korisnik?.ime || ""} ${korisnik?.Prezime || korisnik?.prezime || ""}`.trim() || korisnik?.Email || (applicantId ? `Korisnik #${applicantId}` : "Korisnik");
                       const canSendRequest = isLoggedIn && String(applicantId) !== String(uid) && !applicantClosed;
@@ -389,22 +437,38 @@ export default function DetailPage({ event: e, navigate, toast }) {
                           <td data-label="Poruka">{prijava.Tekst || "/"}</td>
                           <td data-label="Status">{prijava.Status || "/"}</td>
                           <td data-label="Akcija">
-                            {canSendRequest ? (
+                            {existingCet?.ID ? (
                               <button
-                                onClick={() => handleSendPsmZahtev(korisnik, prijava.ID, applicantId)}
-                                disabled={requestSent}
+                                onClick={() => openExistingCet(existingCet)}
                                 style={{
-                                  border: requestSent ? "1px solid #d7dedb" : `1px solid ${G.green}`,
-                                  background: requestSent ? "#f3f6f5" : "#fff",
-                                  color: requestSent ? G.muted : G.green,
+                                  border: `1px solid ${G.green}`,
+                                  background: "#fff",
+                                  color: G.green,
                                   borderRadius: 10,
                                   padding: "8px 10px",
-                                  cursor: requestSent ? "not-allowed" : "pointer",
+                                  cursor: "pointer",
                                   fontWeight: 700,
                                   whiteSpace: "nowrap",
                                 }}
                               >
-                                {requestSent ? "Zahtjev poslat" : "Posalji zahtjev"}
+                                Otvori chat
+                              </button>
+                            ) : canSendRequest ? (
+                              <button
+                                onClick={() => handleSendPsmZahtev(korisnik, prijava.ID, applicantId)}
+                                disabled={requestSent || requestSending}
+                                style={{
+                                  border: requestSent || requestSending ? "1px solid #d7dedb" : `1px solid ${G.green}`,
+                                  background: requestSent || requestSending ? "#f3f6f5" : "#fff",
+                                  color: requestSent || requestSending ? G.muted : G.green,
+                                  borderRadius: 10,
+                                  padding: "8px 10px",
+                                  cursor: requestSent || requestSending ? "not-allowed" : "pointer",
+                                  fontWeight: 700,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {requestSent ? "Vec imate zahtjev ka ovoj osobi" : requestSending ? "Slanje..." : "Posalji zahtjev"}
                               </button>
                             ) : (
                               <span style={{ color: G.muted, fontSize: 13 }}>
@@ -430,14 +494,15 @@ export default function DetailPage({ event: e, navigate, toast }) {
 
         <div>
           <div className="detail-card">
-            <h3>Detalji</h3>
+            <h3>{t("details")}</h3>
             {[
-              { label: "Datum", value: datum ? new Date(datum).toLocaleDateString("sr-Latn", { day: "numeric", month: "long", year: "numeric" }) : "/" },
-              { label: "Vrijeme", value: vreme || "/" },
-              { label: "Grad", value: grad || "/" },
-              { label: "Tip dogadjaja", value: tip || "/" },
-              { label: "Organizator", value: organizer || "/" },
-              { label: "Cijena", value: price == null || price === 0 ? "Besplatno" : `${price} EUR` },
+              { label: t("date"), value: datum ? new Date(datum).toLocaleDateString(dateLocale(language), { day: "numeric", month: "long", year: "numeric" }) : "/" },
+              { label: language === "ENG" ? "Time" : "Vrijeme", value: vreme || "/" },
+              { label: language === "ENG" ? "City" : "Grad", value: translateText(grad, language) || "/" },
+              { label: language === "ENG" ? "Address" : "Adresa", value: translateText(address, language) || "/" },
+              { label: language === "ENG" ? "Event type" : "Tip dogadjaja", value: translateText(tip, language) || "/" },
+              { label: t("organizer"), value: organizer || "/" },
+              { label: language === "ENG" ? "Price" : "Cijena", value: price == null || price === 0 ? t("free") : `${price} EUR` },
             ].map(({ label, value }) => (
               <div key={label} className="detail-info-row">
                 <div>
@@ -449,7 +514,7 @@ export default function DetailPage({ event: e, navigate, toast }) {
           </div>
 
           <div className="detail-card">
-            <h3>Tvoja reakcija</h3>
+            <h3>{t("yourReaction")}</h3>
             <div style={{ display: "flex", gap: 8, marginBottom: "0.75rem" }}>
               <button
                 onClick={() => handleVote("up")}
@@ -517,6 +582,7 @@ export default function DetailPage({ event: e, navigate, toast }) {
           </div>
         </div>
       </div>
+      <EventMap event={event} title={t("eventLocation")} language={language} showList={false} />
     </div>
   );
 }

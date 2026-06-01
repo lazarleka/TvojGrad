@@ -32,6 +32,9 @@ public class Dogadjaj {
     @JsonProperty("Grad")
     private String Grad;
 
+    @JsonProperty("Adresa")
+    private String Adresa;
+
     @JsonProperty("Organizator_ID")
     private Integer Organizator_ID;
 
@@ -63,6 +66,7 @@ public class Dogadjaj {
             Integer Downvote,
             String Status,
             String Grad,
+            String Adresa,
             Integer Organizator_ID,
             Integer Administrator_ID,
             String Tip_dogadjaja,
@@ -70,7 +74,7 @@ public class Dogadjaj {
             String Emoji,
             Double Cijena
     ) {
-        this(ID, Naslov, Opis, Datum, Vreme, Upvote, Downvote, Status, Grad, Organizator_ID,
+        this(ID, Naslov, Opis, Datum, Vreme, Upvote, Downvote, Status, Grad, Adresa, Organizator_ID,
                 null, Administrator_ID, Tip_dogadjaja, slika_1, Emoji, Cijena);
     }
 
@@ -84,6 +88,7 @@ public class Dogadjaj {
             Integer Downvote,
             String Status,
             String Grad,
+            String Adresa,
             Integer Organizator_ID,
             String Organizator,
             Integer Administrator_ID,
@@ -101,6 +106,7 @@ public class Dogadjaj {
         this.Downvote = Downvote;
         this.Status = Status;
         this.Grad = Grad;
+        this.Adresa = Adresa;
         this.Organizator_ID = Organizator_ID;
         this.Organizator = Organizator;
         this.Administrator_ID = Administrator_ID;
@@ -119,6 +125,7 @@ public class Dogadjaj {
     public Integer getDownvote() { return Downvote; }
     public String getStatus() { return Status; }
     public String getGrad() { return Grad; }
+    public String getAdresa() { return Adresa; }
     public Integer getOrganizator_ID() { return Organizator_ID; }
     public String getOrganizator() { return Organizator; }
     public Integer getAdministrator_ID() { return Administrator_ID; }
@@ -136,6 +143,7 @@ public class Dogadjaj {
     public void setDownvote(Integer downvote) { this.Downvote = downvote; }
     public void setStatus(String status) { this.Status = status; }
     public void setGrad(String grad) { this.Grad = grad; }
+    public void setAdresa(String adresa) { this.Adresa = adresa; }
     public void setOrganizator_ID(Integer organizator_ID) { this.Organizator_ID = organizator_ID; }
     public void setOrganizator(String organizator) { this.Organizator = organizator; }
     public void setAdministrator_ID(Integer administrator_ID) { this.Administrator_ID = administrator_ID; }

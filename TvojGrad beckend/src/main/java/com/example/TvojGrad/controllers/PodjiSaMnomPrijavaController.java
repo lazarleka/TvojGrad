@@ -66,6 +66,14 @@ public class PodjiSaMnomPrijavaController {
         return azurirana != null ? ResponseEntity.ok(azurirana) : ResponseEntity.badRequest().build();
     }
 
+    @PutMapping(value = "/{ID}/status/{Status}")
+    public ResponseEntity<PodjiSaMnomPrijava> azurirajStatus(
+            @PathVariable("ID") int ID,
+            @PathVariable("Status") String Status) {
+        PodjiSaMnomPrijava azurirana = this.prijavaService.azurirajStatus(ID, Status);
+        return azurirana != null ? ResponseEntity.ok(azurirana) : ResponseEntity.badRequest().build();
+    }
+
     @DeleteMapping(value = "/{ID}")
     public ResponseEntity<Void> obrisiPrijavu(@PathVariable("ID") int ID) {
         this.prijavaService.obrisiPrijavu(ID);
