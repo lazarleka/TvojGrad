@@ -102,7 +102,7 @@ export default function AuthPage({ setUser, navigate, toast }) {
       if (response.status === 201) {
         const noviKorisnik = await response.json();
         if ((noviKorisnik.Status || noviKorisnik.status) === "na_cekanju_organizator") {
-          toast("Registracija organizatora je poslata. Mozete se prijaviti tek kada vas admin odobri.");
+          toast("Registracija organizatora je poslata. Možete se prijaviti tek kada vas admin odobri.");
           setTab("login");
           return;
         }

@@ -22,12 +22,14 @@ import {
   fetchAdminRequests,
   fetchCities,
   fetchEventById,
+  fetchOrganizers,
   fetchOrganizerEvents,
   getStoredUser,
   getUserId,
   rejectAdminRequest,
   rejectEventRequest,
   requestEventPromotion,
+  updateEvent as saveEventChanges,
   uploadEventImage,
 } from "./api";
 import { Client } from "@stomp/stompjs";
@@ -100,6 +102,7 @@ export default function TvojGrad() {
   });
   const [cities, setCities] = useState(["Svi gradovi"]);
   const [adminRequests, setAdminRequests] = useState([]);
+  const [organizers, setOrganizers] = useState([]);
   const [psmRequests, setPsmRequests] = useState({});
   const [psmListings, setPsmListings] = useState({});
   const [conversations, setConversations] = useState({});
@@ -156,7 +159,7 @@ export default function TvojGrad() {
   useEffect(() => {
     fetchCities()
       .then(setCities)
-      .catch(() => setCities(["Svi gradovi", "Podgorica", "Bar", "Budva", "Tivat", "Niksic"]));
+      .catch(() => setCities(["Svi gradovi", "Podgorica", "Bar", "Budva", "Tivat", "Nikšić"]));
   }, []);
 
   useEffect(() => {
@@ -170,12 +173,13 @@ export default function TvojGrad() {
 
   const loadAdminData = async () => {
     try {
-      const [allEvents, requests] = await Promise.all([fetchAdminEvents(), fetchAdminRequests()]);
+      const [allEvents, requests, allOrganizers] = await Promise.all([fetchAdminEvents(), fetchAdminRequests(), fetchOrganizers()]);
       setEvents(allEvents);
       setAdminRequests(requests || []);
+      setOrganizers(allOrganizers || []);
     } catch (err) {
       console.error(err);
-      toast("Admin podaci nisu ucitani");
+      toast("Admin podaci nisu učitani");
     }
   };
 
@@ -346,7 +350,7 @@ export default function TvojGrad() {
       setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...updated, coverImg: updated.coverImg || img } : e)));
       toast(img ? "Slika azurirana" : "Slika uklonjena");
     } catch {
-      toast("Slika nije sacuvana");
+      toast("Slika nije sačuvana");
     }
   };
 
@@ -359,18 +363,18 @@ export default function TvojGrad() {
     try {
       const updated = await approveEventRequest(id, backendUserId);
       setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
-      toast("Dogadjaj odobren");
+      toast("Događaj odobren");
     } catch {
-      toast("Dogadjaj nije odobren");
+      toast("Događaj nije odobren");
     }
   };
   const rejectEvent = async (id) => {
     try {
       const updated = await rejectEventRequest(id, backendUserId);
       setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
-      toast("Dogadjaj odbijen");
+      toast("Događaj odbijen");
     } catch {
-      toast("Dogadjaj nije odbijen");
+      toast("Događaj nije odbijen");
     }
   };
   const deleteEvent = async (id) => {
@@ -385,13 +389,13 @@ export default function TvojGrad() {
     try {
       await deleteEventById(id);
       setEvents((prev) => prev.filter((e) => e.id !== id));
-      toast("Dogadjaj obrisan");
+      toast("Događaj obrisan");
       if (userRole === "organizator") {
         loadOrganizerEvents();
       }
     } catch (err) {
       console.error(err);
-      toast("Dogadjaj nije obrisan");
+      toast("Događaj nije obrisan");
     }
   };
 
@@ -401,7 +405,7 @@ export default function TvojGrad() {
       setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
       toast("Zahtjev za promociju je poslat adminu");
     } catch {
-      toast("Zahtjev za promociju nije sacuvan");
+      toast("Zahtjev za promociju nije sačuvan");
     }
   };
 
@@ -412,10 +416,30 @@ export default function TvojGrad() {
         saved = await uploadEventImage(saved.id, newEv.coverFile);
       }
       setEvents((prev) => [saved, ...prev.filter((e) => e.id !== saved.id)]);
-      toast(newEv.promoted ? "Dogadjaj dodat - ceka odobrenje promocije" : "Dogadjaj dodat - ceka odobrenje");
+      toast(newEv.promoted ? "Događaj dodat - čeka odobrenje promocije" : "Događaj dodat - čeka odobrenje");
     } catch (err) {
       console.error(err);
-      toast("Dogadjaj nije sacuvan");
+      toast("Događaj nije sačuvan");
+    }
+  };
+
+  const updateEvent = async (id, changes) => {
+    try {
+      let saved = await saveEventChanges(id, changes, backendUserId);
+      if (changes.coverFile) {
+        saved = await uploadEventImage(saved.id || id, changes.coverFile);
+      }
+      const normalized = { ...saved, id: saved.id || id };
+      setEvents((prev) => prev.map((event) => (String(event.id) === String(id) ? normalized : event)));
+      toast("Događaj je izmijenjen");
+      if (userRole === "organizator") {
+        loadOrganizerEvents();
+      }
+      return true;
+    } catch (err) {
+      console.error(err);
+      toast("Događaj nije sačuvan");
+      return false;
     }
   };
 
@@ -446,7 +470,7 @@ export default function TvojGrad() {
       };
     });
     const isListed = (psmListings[eventId] || []).some((u) => u.id === me.id);
-    toast(isListed ? "Uklonjeni ste iz liste za ovaj dogadjaj" : "Dodati ste na listu: trazite drustvo za ovaj dogadjaj");
+    toast(isListed ? "Uklonjeni ste iz liste za ovaj događaj" : "Dodati ste na listu: tražite društvo za ovaj događaj");
   };
 
   const sendPsmRequest = (eventId, targetUser) => {
@@ -477,7 +501,7 @@ export default function TvojGrad() {
         createdAt: Date.now(),
       },
     }));
-    toast(`Zahtjev poslan korisniku ${targetUser.name}. Ceka se da ga prihvati.`);
+    toast(`Zahtjev poslat korisniku ${targetUser.name}. Čeka se da ga prihvati.`);
   };
 
   const acceptPsmRequest = (requestId) => {
@@ -673,10 +697,10 @@ export default function TvojGrad() {
         {page === "detail" && !detailEvent && (
           <div className="main">
             <div className="empty">
-              Dogadjaj nije pronadjen.
+              Događaj nije pronađen.
               <br />
               <button className="btn-primary" style={{ marginTop: "1rem" }} onClick={() => navigate("home")}>
-                Nazad na dogadjaje
+                Nazad na događaje
               </button>
             </div>
           </div>
@@ -711,10 +735,12 @@ export default function TvojGrad() {
             user={user}
             events={events.filter((e) => String(e.organizerId) === String(backendUserId) || e.organizer === userName)}
             addEvent={addEvent}
+            updateEvent={updateEvent}
             deleteEvent={deleteEvent}
             promoteEvent={promoteEvent}
             updateEventImg={updateEventImg}
             cities={cities}
+            language={language}
           />
         )}
         {page === "admin" && userRole === "administrator" && (
@@ -724,10 +750,13 @@ export default function TvojGrad() {
             rejectEvent={rejectEvent}
             deleteEvent={deleteEvent}
             adminRequests={adminRequests}
+            organizers={organizers}
+            language={language}
             approveAdmin={async (id) => {
               try {
-                await approveAdminRequest(id);
+                const updated = await approveAdminRequest(id);
                 setAdminRequests((prev) => prev.filter((u) => String(u.ID || u.id) !== String(id)));
+                setOrganizers((prev) => prev.map((u) => String(u.ID || u.id) === String(id) ? { ...u, ...updated } : u));
                 toast("Organizator odobren");
               } catch {
                 toast("Organizator nije odobren");
@@ -735,8 +764,9 @@ export default function TvojGrad() {
             }}
             rejectAdmin={async (id) => {
               try {
-                await rejectAdminRequest(id);
+                const updated = await rejectAdminRequest(id);
                 setAdminRequests((prev) => prev.filter((u) => String(u.ID || u.id) !== String(id)));
+                setOrganizers((prev) => prev.map((u) => String(u.ID || u.id) === String(id) ? { ...u, ...updated } : u));
                 toast("Zahtjev organizatora odbijen");
               } catch {
                 toast("Zahtjev organizatora nije odbijen");
@@ -746,7 +776,7 @@ export default function TvojGrad() {
         )}
 
         <footer className="footer">
-          <strong>TvojGrad</strong> - Centralizovana platforma za dogadjaje u gradu
+          <strong>TvojGrad</strong> - Centralizovana platforma za događaje u gradu
         </footer>
       </div>
       <div className="toast-wrap">

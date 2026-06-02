@@ -1,0 +1,8 @@
+{
+  "appId": "com.tvojgrad.app",
+  "appName": "TvojGrad",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "http"
+  }
+}
