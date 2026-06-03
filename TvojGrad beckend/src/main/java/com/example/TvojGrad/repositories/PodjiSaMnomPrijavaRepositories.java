@@ -29,16 +29,18 @@ public class PodjiSaMnomPrijavaRepositories {
                 rs.getString("Tekst"),
                 rs.getString("Status"),
                 k,
-                rs.getInt("Objava_ID")
+                rs.getInt("Objava_ID"),
+                rs.getString("Objava_Naslov")
         );
     }
 
     // Bazni SQL upit koji radi JOIN da povuče i korisnika odmah
     private final String BASE_SELECT =
-            "SELECT p.ID as p_id, p.Tekst, p.Status, p.Objava_ID, " +
+            "SELECT p.ID as p_id, p.Tekst, p.Status, p.Objava_ID, o.Naslov AS Objava_Naslov, " +
                     "k.ID as k_id, k.Ime, k.Prezime, k.Email, k.Tip, k.Lozinka, k.Profilna " +
                     "FROM podji_sa_mnom_prijava p " +
-                    "INNER JOIN korisnik k ON p.Korisnik_ID = k.ID";
+                    "INNER JOIN korisnik k ON p.Korisnik_ID = k.ID " +
+                    "LEFT JOIN objava o ON p.Objava_ID = o.ID";
 
     public List<PodjiSaMnomPrijava> getAllPrijave() {
         Connection conn = null;

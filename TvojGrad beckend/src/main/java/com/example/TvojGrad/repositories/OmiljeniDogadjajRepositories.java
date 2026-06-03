@@ -22,7 +22,9 @@ public class OmiljeniDogadjajRepositories {
             conn = DBUtil.open();
             res = new ArrayList<>();
 
-            String sql = "SELECT o.* FROM omiljeni_dogadjaji od INNER JOIN objava o ON od.Objava_ID = o.ID WHERE od.Korisnik_ID = ?";
+            String sql = "SELECT o.* FROM omiljeni_dogadjaji od " +
+                    "INNER JOIN objava o ON od.Objava_ID = o.ID " +
+                    "WHERE od.Korisnik_ID = ? AND o.Status IN ('odobrena', 'promovisana')";
             PreparedStatement ps = conn.prepareStatement(sql);
             ps.setInt(1, KorisnikID);
             ResultSet rs = ps.executeQuery();

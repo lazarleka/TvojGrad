@@ -35,6 +35,9 @@ const MONTENEGRO_BOUNDS = [
   [43.65, 20.55],
 ];
 
+const CACHE_VERSION = "v2";
+const MONTENEGRO_VIEWBOX = "18.35,43.65,20.55,41.75";
+
 const ADDRESS_COORDS = {
   "pine|tivat": [42.4297905, 18.6955641],
   "gorica, podgorica|podgorica": [42.4496, 19.2608],
@@ -57,9 +60,44 @@ const getEventId = (event) => event?.id || event?.ID;
 const getEventTitle = (event) => event?.title || event?.Naslov || "Događaj";
 const getEventCity = (event) => event?.city || event?.Grad || "";
 const getEventAddress = (event) => readEventAddress(event);
-const fallbackCoordsFor = (event) => CITY_COORDS[getEventCity(event)] || [42.7087, 19.3744];
-const normalizeLookup = (value) => String(value || "").trim().toLowerCase();
-const storageKeyFor = (query) => `mapCoords:${query}`;
+const normalizeText = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+const fallbackCoordsFor = (event) => CITY_COORDS[getEventCity(event)] || CITY_COORDS[normalizeText(getEventCity(event))] || [42.7087, 19.3744];
+const normalizeLookup = normalizeText;
+const storageKeyFor = (query) => `mapCoords:${CACHE_VERSION}:${query}`;
+
+const getExplicitCoords = (event) => {
+  const lat = Number(event?.lat ?? event?.latitude ?? event?.Lat ?? event?.Latitude ?? event?.LAT ?? event?.Sirina);
+  const lon = Number(event?.lng ?? event?.lon ?? event?.longitude ?? event?.Lng ?? event?.Lon ?? event?.Longitude ?? event?.LON ?? event?.Duzina);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (lat < MONTENEGRO_BOUNDS[0][0] || lat > MONTENEGRO_BOUNDS[1][0]) return null;
+  if (lon < MONTENEGRO_BOUNDS[0][1] || lon > MONTENEGRO_BOUNDS[1][1]) return null;
+  return [lat, lon];
+};
+
+const isInMontenegro = ([lat, lon]) =>
+  lat >= MONTENEGRO_BOUNDS[0][0] &&
+  lat <= MONTENEGRO_BOUNDS[1][0] &&
+  lon >= MONTENEGRO_BOUNDS[0][1] &&
+  lon <= MONTENEGRO_BOUNDS[1][1];
+
+const buildGeocodeQueries = (event) => {
+  const city = getEventCity(event);
+  const address = getEventAddress(event);
+  const compactAddress = String(address || "").replace(/\bbb\b/gi, "").replace(/\s+/g, " ").trim();
+  const candidates = [
+    [address, city, "Montenegro"].filter(Boolean).join(", "),
+    [address, city, "Crna Gora"].filter(Boolean).join(", "),
+    compactAddress && compactAddress !== address ? [compactAddress, city, "Montenegro"].filter(Boolean).join(", ") : "",
+    [address, "Montenegro"].filter(Boolean).join(", "),
+  ];
+  return [...new Set(candidates.map((item) => item.trim()).filter(Boolean))];
+};
 
 const readStoredCoords = (query) => {
   try {
@@ -111,6 +149,9 @@ const loadLeaflet = () => {
 };
 
 const geocodeEvent = async (event) => {
+  const explicitCoords = getExplicitCoords(event);
+  if (explicitCoords) return explicitCoords;
+
   const city = getEventCity(event);
   const address = getEventAddress(event);
   const fallback = fallbackCoordsFor(event);
@@ -119,7 +160,7 @@ const geocodeEvent = async (event) => {
   const knownCoords = ADDRESS_COORDS[`${normalizeLookup(address)}|${normalizeLookup(city)}`];
   if (knownCoords) return knownCoords;
 
-  const query = [address, city, "Montenegro"].filter(Boolean).join(", ");
+  const query = buildGeocodeQueries(event).join("|");
   if (geocodeCache.has(query)) return geocodeCache.get(query);
   const stored = readStoredCoords(query);
   if (stored) {
@@ -128,16 +169,29 @@ const geocodeEvent = async (event) => {
   }
 
   try {
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`);
-    if (!response.ok) return fallback;
-    const data = await response.json();
-    const first = data?.[0];
-    if (!first) return fallback;
-    const coords = [Number(first.lat), Number(first.lon)];
-    if (!Number.isFinite(coords[0]) || !Number.isFinite(coords[1])) return fallback;
-    geocodeCache.set(query, coords);
-    saveStoredCoords(query, coords);
-    return coords;
+    for (const candidate of buildGeocodeQueries(event)) {
+      const params = new URLSearchParams({
+        format: "jsonv2",
+        limit: "3",
+        addressdetails: "1",
+        countrycodes: "me",
+        bounded: "1",
+        viewbox: MONTENEGRO_VIEWBOX,
+        q: candidate,
+      });
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`);
+      if (!response.ok) continue;
+      const data = await response.json();
+      const match = (data || [])
+        .map((item) => [Number(item.lat), Number(item.lon)])
+        .find((coords) => Number.isFinite(coords[0]) && Number.isFinite(coords[1]) && isInMontenegro(coords));
+      if (match) {
+        geocodeCache.set(query, match);
+        saveStoredCoords(query, match);
+        return match;
+      }
+    }
+    return fallback;
   } catch {
     return fallback;
   }
@@ -152,7 +206,7 @@ const spreadOverlappingPoints = (points) => {
 
   groups.forEach((group) => {
     if (group.length < 2) return;
-    const radius = 0.0028 + group.length * 0.00035;
+    const radius = 0.00006 + group.length * 0.00001;
     group.forEach((point, index) => {
       const angle = (Math.PI * 2 * index) / group.length;
       point.coords = [

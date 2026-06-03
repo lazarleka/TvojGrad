@@ -15,6 +15,13 @@ const saveVotes = (votes) => {
   localStorage.setItem("myVotes", JSON.stringify(votes));
 };
 
+const isVisibleFavorite = (event) =>
+  event?.status === "approved" ||
+  event?.statusRaw === "odobrena" ||
+  event?.statusRaw === "promovisana" ||
+  event?.Status === "odobrena" ||
+  event?.Status === "promovisana";
+
 export default function FavoritesPage({ navigate, user, t = (key) => key, language = "SRB" }) {
   const [favEvents, setFavEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +42,7 @@ export default function FavoritesPage({ navigate, user, t = (key) => key, langua
       const response = await fetch(`${API_BASE_URL}/OmiljeniDogadjaji/${userId}`);
       if (response.ok) {
         const data = await response.json();
-        const formattedData = (data || []).map(formatEvent);
+        const formattedData = (data || []).map(formatEvent).filter(isVisibleFavorite);
         setFavEvents(formattedData);
 
         const voteEntries = await Promise.all(

@@ -224,19 +224,46 @@ public class DogadjajRepositories {
 
         try {
             conn = DBUtil.open();
-            String sql = "DELETE FROM objava WHERE ID=?";
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setInt(1, ID);
-            ps.executeUpdate();
+            conn.setAutoCommit(false);
+
+            executeDelete(conn,
+                    "DELETE pc FROM poruka_ceta pc " +
+                            "JOIN podji_sa_mnom_cet c ON c.ID = pc.Cet_ID " +
+                            "JOIN podji_sa_mnom_prijava p ON p.ID = c.Prijava_ID " +
+                            "WHERE p.Objava_ID=?",
+                    ID);
+            executeDelete(conn,
+                    "DELETE c FROM podji_sa_mnom_cet c " +
+                            "JOIN podji_sa_mnom_prijava p ON p.ID = c.Prijava_ID " +
+                            "WHERE p.Objava_ID=?",
+                    ID);
+            executeDelete(conn, "DELETE FROM podji_sa_mnom_prijava WHERE Objava_ID=?", ID);
+            executeDelete(conn, "DELETE FROM omiljeni_dogadjaji WHERE Objava_ID=?", ID);
+            executeDelete(conn, "DELETE FROM upvote WHERE ID_Dogadjaja=?", ID);
+            executeDelete(conn, "DELETE FROM downvote WHERE ID_Dogadjaja=?", ID);
+            executeDelete(conn, "DELETE FROM objava WHERE ID=?", ID);
+            conn.commit();
             System.out.println("Uspjesno obrisana objava sa ID: " + ID);
         } catch (SQLException s) {
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ex) { System.out.println(ex); }
+            }
             System.out.println(s);
         } finally {
             if (conn != null) {
-                try { conn.close(); }
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
                 catch (Exception ex) { System.out.println(ex); }
             }
         }
+    }
+
+    private void executeDelete(Connection conn, String sql, int ID) throws SQLException {
+        PreparedStatement ps = conn.prepareStatement(sql);
+        ps.setInt(1, ID);
+        ps.executeUpdate();
     }
 
     public Dogadjaj upvote(int ID) {

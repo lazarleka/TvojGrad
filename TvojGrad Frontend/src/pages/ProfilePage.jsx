@@ -25,6 +25,13 @@ const initialsFor = (name) => name
   .join("")
   .toUpperCase() || "?";
 
+const isVisibleFavorite = (event) =>
+  event?.status === "approved" ||
+  event?.statusRaw === "odobrena" ||
+  event?.statusRaw === "promovisana" ||
+  event?.Status === "odobrena" ||
+  event?.Status === "promovisana";
+
 const avatarFor = (person, fallbackName, extraClass = "") => {
   const image = absoluteImgSrc(person?.Profilna || person?.profilna);
   return (
@@ -45,6 +52,23 @@ const statusLabel = (status) => {
 const requestReceiver = (request, usersById = {}) => {
   const receiverId = request.PrimioZahtev || request.primioZahtev;
   return request.PrimioZahtevKorisnik || request.primioZahtevKorisnik || usersById[String(receiverId)] || null;
+};
+
+const getPrijavaObjavaId = (prijava) => prijava?.Objava_ID || prijava?.objava_ID || prijava?.objavaId;
+
+const messageActivityValue = (message) => {
+  const rawTime = message?.Vrijeme || message?.vrijeme || message?.createdAt || message?.timestamp;
+  const parsedTime = rawTime ? Date.parse(rawTime) : NaN;
+  if (Number.isFinite(parsedTime)) return parsedTime;
+  const id = Number(message?.ID || message?.id);
+  return Number.isFinite(id) ? id : 0;
+};
+
+const latestActivityForCet = (cet, chatMessages) => {
+  const messages = chatMessages[cet.ID] || chatMessages[String(cet.ID)] || [];
+  const latestMessage = Math.max(0, ...messages.map(messageActivityValue));
+  const fallback = Number(cet.ID || cet.id || 0);
+  return latestMessage || fallback;
 };
 
 export default function ProfilePage({
@@ -90,6 +114,7 @@ export default function ProfilePage({
   const [stompClient, setStompClient] = useState(null);
   const [unreadCetIds, setUnreadCetIds] = useState({});
   const [usersById, setUsersById] = useState({});
+  const [eventTitlesById, setEventTitlesById] = useState({});
 
   useEffect(() => {
     if (!uid) return;
@@ -123,6 +148,47 @@ export default function ProfilePage({
     }
     localStorage.removeItem(storageKey);
   }, [uid, dbCets, setProfileTab, onMarkChatRead]);
+
+  useEffect(() => {
+    const titlesFromEvents = {};
+    events.forEach((event) => {
+      const id = event.id || event.ID;
+      const title = event.title || event.Naslov;
+      if (id && title) titlesFromEvents[String(id)] = title;
+    });
+
+    const titlesFromPrijave = {};
+    dbPrijave.forEach((prijava) => {
+      const id = getPrijavaObjavaId(prijava);
+      const title = prijava.Objava_Naslov || prijava.objava_Naslov || prijava.objavaNaslov;
+      if (id && title) titlesFromPrijave[String(id)] = title;
+    });
+
+    if (Object.keys(titlesFromEvents).length || Object.keys(titlesFromPrijave).length) {
+      setEventTitlesById((prev) => {
+        const next = { ...prev, ...titlesFromEvents, ...titlesFromPrijave };
+        return Object.keys(next).some((key) => next[key] !== prev[key]) ? next : prev;
+      });
+    }
+
+    const missingIds = [...new Set(dbPrijave
+      .map(getPrijavaObjavaId)
+      .filter((id) => id && !titlesFromEvents[String(id)] && !titlesFromPrijave[String(id)] && !eventTitlesById[String(id)]))];
+
+    missingIds.forEach(async (id) => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/dogadjaji/${id}`);
+        if (!response.ok) return;
+        const data = await response.json();
+        const title = data?.Naslov || data?.title;
+        if (title) {
+          setEventTitlesById((prev) => ({ ...prev, [String(id)]: title }));
+        }
+      } catch {
+        // Ako objava vise nije dostupna, ostaje neutralan fallback.
+      }
+    });
+  }, [dbPrijave, events, eventTitlesById]);
 
   const loadProfileData = async () => {
     await Promise.all([loadFavorites(), loadVotes(), loadRequests(), loadCets(), loadPrijave()]);
@@ -409,7 +475,7 @@ export default function ProfilePage({
     }
   };
 
-  const favoriteList = backendFavorites.length ? backendFavorites : favEvents;
+  const favoriteList = (backendFavorites.length ? backendFavorites : favEvents).filter(isVisibleFavorite);
   const votedEvents = backendVotedEvents.length ? backendVotedEvents : events.filter((event) => event.myVote);
   const receivedRequests = useMemo(
     () => dbRequests.filter((request) => String(request.PrimioZahtev || request.primioZahtev) === String(uid)),
@@ -432,12 +498,14 @@ export default function ProfilePage({
     return pairs;
   }, [dbRequests]);
   const acceptedCets = useMemo(
-    () => dbCets.filter((cet) => {
-      const senderId = getUserId(cet.Posiljalac || cet.posiljalac);
-      const receiverId = cet.Primalac_ID || cet.primalac_ID;
-      return senderId && receiverId && acceptedPairs.has([String(senderId), String(receiverId)].sort().join(":"));
-    }),
-    [dbCets, acceptedPairs]
+    () => dbCets
+      .filter((cet) => {
+        const senderId = getUserId(cet.Posiljalac || cet.posiljalac);
+        const receiverId = cet.Primalac_ID || cet.primalac_ID;
+        return senderId && receiverId && acceptedPairs.has([String(senderId), String(receiverId)].sort().join(":"));
+      })
+      .sort((a, b) => latestActivityForCet(b, chatMessages) - latestActivityForCet(a, chatMessages)),
+    [dbCets, acceptedPairs, chatMessages]
   );
 
   const pendingReceived = receivedRequests.filter((request) => statusLabel(request.status).toLowerCase() === "na čekanju");
@@ -477,9 +545,18 @@ export default function ProfilePage({
   };
 
   const eventTitleForPrijava = (prijava) => {
-    const objavaId = prijava.Objava_ID || prijava.objava_ID;
+    const objavaId = getPrijavaObjavaId(prijava);
     const related = events.find((event) => String(event.id || event.ID) === String(objavaId));
-    return translateText(related?.title || related?.Naslov || (objavaId ? `Događaj #${objavaId}` : "Događaj"), language);
+    return translateText(
+      prijava.Objava_Naslov ||
+        prijava.objava_Naslov ||
+        prijava.objavaNaslov ||
+        eventTitlesById[String(objavaId)] ||
+        related?.title ||
+        related?.Naslov ||
+        "Događaj",
+      language
+    );
   };
 
   const updatePsmPrijavaStatus = async (prijava, status) => {

@@ -32,6 +32,7 @@ import {
   uploadEventImage,
 } from "./api";
 import { Client } from "@stomp/stompjs";
+import { initMobileNotifications, notifyNewChatMessage } from "./mobileNotifications";
 
 const PAGE_PATHS = {
   home: "/",
@@ -44,6 +45,12 @@ const PAGE_PATHS = {
 };
 
 const getEventId = (event) => event?.id ?? event?.ID;
+const isPublicEvent = (event) =>
+  event?.status === "approved" ||
+  event?.statusRaw === "odobrena" ||
+  event?.statusRaw === "promovisana" ||
+  event?.Status === "odobrena" ||
+  event?.Status === "promovisana";
 
 const buildPath = (page, event, opts = {}) => {
   if (page === "detail") {
@@ -169,6 +176,10 @@ export default function TvojGrad() {
     }
   }, [page, userRole, backendUserId]);
 
+  useEffect(() => {
+    if (backendUserId) void initMobileNotifications();
+  }, [backendUserId]);
+
   const loadAdminData = async () => {
     try {
       const [allEvents, requests] = await Promise.all([fetchAdminEvents(), fetchAdminRequests()]);
@@ -260,6 +271,7 @@ export default function TvojGrad() {
                   if (String(senderId) !== String(backendUserId)) {
                     setBackendUnreadCetIds((prev) => ({ ...prev, [cet.ID]: true }));
                     toast("Stigla je nova poruka");
+                    void notifyNewChatMessage({ cetId: cet.ID, message: received });
                   }
                 });
               });
@@ -377,7 +389,8 @@ export default function TvojGrad() {
   const deleteEvent = async (id) => {
     const target = events.find((e) => e.id === id);
     if (!target) return;
-    const canDelete = userRole === "administrator" || (userRole === "organizator" && String(target.organizerId) === String(backendUserId));
+    const ownsEvent = String(target.organizerId || target.Organizator_ID || backendUserId) === String(backendUserId);
+    const canDelete = userRole === "administrator" || (userRole === "organizator" && ownsEvent);
     if (!canDelete) {
       toast("Nemate dozvolu za brisanje ove objave");
       return;
@@ -625,7 +638,7 @@ export default function TvojGrad() {
     .sort((a, b) => (b.approvedAt || 0) - (a.approvedAt || 0));
 
   const popularEvents = [...eventsForCurrentUser].filter((e) => e.status === "approved").sort((a, b) => b.votes.up - a.votes.up);
-  const favEvents = eventsForCurrentUser.filter((e) => e.fav);
+  const favEvents = eventsForCurrentUser.filter((e) => e.fav && isPublicEvent(e));
   const detailEvent =
     page === "detail"
       ? routeEvent ||
