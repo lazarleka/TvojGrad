@@ -181,18 +181,41 @@ public class PodjiSaMnomPrijavaRepositories {
         return "Otvoren";
     }
 
-    public void obrisiPrijavu(int ID) {
+    public boolean obrisiPrijavu(int ID) {
         Connection conn = null;
 
         try {
             conn = DBUtil.open();
+            conn.setAutoCommit(false);
+            PreparedStatement deleteMessages = conn.prepareStatement(
+                    "DELETE pc FROM poruka_ceta pc " +
+                            "JOIN podji_sa_mnom_cet c ON c.ID = pc.Cet_ID " +
+                            "WHERE c.Prijava_ID=?");
+            deleteMessages.setInt(1, ID);
+            deleteMessages.executeUpdate();
+
+            PreparedStatement deleteChats = conn.prepareStatement("DELETE FROM podji_sa_mnom_cet WHERE Prijava_ID=?");
+            deleteChats.setInt(1, ID);
+            deleteChats.executeUpdate();
+
             PreparedStatement ps = conn.prepareStatement("DELETE FROM podji_sa_mnom_prijava WHERE ID=?");
             ps.setInt(1, ID);
-            ps.executeUpdate();
+            int deleted = ps.executeUpdate();
+            conn.commit();
+            return deleted > 0;
         } catch (SQLException e) {
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ex) { System.out.println(ex); }
+            }
             System.out.println(e);
+            return false;
         } finally {
-            if (conn != null) { try { conn.close(); } catch (Exception ex) { System.out.println(ex); } }
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (Exception ex) { System.out.println(ex); }
+            }
         }
     }
 }

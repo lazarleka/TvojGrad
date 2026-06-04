@@ -4,6 +4,8 @@ import EventMap from "../components/EventMap";
 import { API_BASE_URL, fetchUserVote, formatDisplayDate, formatDisplayTime, getEventAddress, getStoredUser, getUserId, removeLegacyVote, submitVote } from "../api";
 import { translateText } from "../i18n";
 
+const newestFirst = (items) => [...(items || [])].sort((a, b) => Number(b?.ID || b?.id || 0) - Number(a?.ID || a?.id || 0));
+
 export default function DetailPage({ event: e, navigate, toast, t = (key) => key, language = "SRB" }) {
   const [currentUser] = useState(getStoredUser);
   const [isFav, setIsFav] = useState(false);
@@ -57,7 +59,7 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
       const response = await fetch(`${API_BASE_URL}/prijave/objava/${eventId}`);
       if (response.ok) {
         const data = await response.json();
-        setPsmPrijave(data || []);
+        setPsmPrijave(newestFirst(data));
       }
     } catch (err) {
       setPsmPrijave([]);
@@ -275,8 +277,10 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
         toast && toast("Zahtjev je poslat.");
       } else {
         setSentPsmRequests((prev) => ({ ...prev, [String(targetId)]: savedRequest }));
-        toast && toast("Vec postoji zahtjev od tog korisnika.");
+        setJustSentPsmRequests((prev) => ({ ...prev, [String(targetId)]: true }));
+        toast && toast("Zahtjev je poslat.");
       }
+      await loadPsmRelations();
     } catch (err) {
       console.error(err);
       toast && toast("Zahtjev nije poslat.");
@@ -295,16 +299,20 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
     navigate("profile", null, { profileTab: "inbox" });
   };
 
-  const psmApplicants = psmPrijave.map((prijava) => ({
+  const getPrijavaUserId = (prijava, korisnik) => prijava?.Korisnik_ID || prijava?.korisnik_ID || getUserId(korisnik);
+  const isClosedStatus = (status) => {
+    const value = (status || "").toLowerCase();
+    return ["arhiv", "otkazana", "otkazan", "zatvorena", "zatvoren", "popunjen", "popunjena"].some((locked) => value.includes(locked));
+  };
+  const visiblePsmPrijave = psmPrijave.filter((prijava) => !isClosedStatus(prijava.Status || prijava.status));
+  const psmApplicants = visiblePsmPrijave.map((prijava) => ({
     prijava,
     korisnik: prijava.Korisnik || prijava.korisnik,
   }));
-  const getPrijavaUserId = (prijava, korisnik) => prijava?.Korisnik_ID || prijava?.korisnik_ID || getUserId(korisnik);
-  const currentUserApplied = psmApplicants.some(({ prijava, korisnik }) => String(getPrijavaUserId(prijava, korisnik)) === String(uid));
-  const isClosedStatus = (status) => {
-    const value = (status || "").toLowerCase();
-    return ["otkazana", "otkazan", "zatvorena", "zatvoren", "popunjen", "popunjena"].some((locked) => value.includes(locked));
-  };
+  const currentUserApplied = psmPrijave.some((prijava) => {
+    const korisnik = prijava.Korisnik || prijava.korisnik;
+    return String(getPrijavaUserId(prijava, korisnik)) === String(uid);
+  });
   const eventPsmClosed = isClosedStatus(event.Status || event.status);
 
   return (
@@ -456,7 +464,7 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
                                   whiteSpace: "nowrap",
                                 }}
                               >
-                                Otvori cet
+                                Otvori chat
                               </button>
                             ) : canSendRequest ? (
                               <button

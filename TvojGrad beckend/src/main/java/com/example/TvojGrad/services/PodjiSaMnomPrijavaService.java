@@ -24,5 +24,5 @@ public class PodjiSaMnomPrijavaService {
     }
     public PodjiSaMnomPrijava azurirajPrijavu(int ID, PodjiSaMnomPrijava p) { return this.prijavaRepositories.azurirajPrijavu(ID, p); }
     public PodjiSaMnomPrijava azurirajStatus(int ID, String status) { return this.prijavaRepositories.azurirajStatus(ID, status); }
-    public void obrisiPrijavu(int ID) { this.prijavaRepositories.obrisiPrijavu(ID); }
+    public boolean obrisiPrijavu(int ID) { return this.prijavaRepositories.obrisiPrijavu(ID); }
 }

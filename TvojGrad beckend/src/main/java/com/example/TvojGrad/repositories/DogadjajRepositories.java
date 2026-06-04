@@ -12,11 +12,12 @@ import java.util.List;
 public class DogadjajRepositories {
 
     private Dogadjaj mapRow(ResultSet rs) throws SQLException {
+        Date datum = rs.getDate("Datum");
         return new Dogadjaj(
                 rs.getInt("ID"),
                 rs.getString("Naslov"),
                 rs.getString("Opis"),
-                rs.getDate("Datum"),
+                datum != null ? datum.toString() : null,
                 rs.getString("Vreme"),
                 rs.getInt("Upvote"),
                 rs.getInt("Downvote"),
@@ -44,6 +45,13 @@ public class DogadjajRepositories {
         } catch (SQLException e) {
             return fallback;
         }
+    }
+
+    private Date sqlDate(String value) {
+        if (value == null || value.isBlank()) return null;
+        String datePart = value.trim();
+        if (datePart.length() >= 10) datePart = datePart.substring(0, 10);
+        return Date.valueOf(datePart);
     }
 
     private Dogadjaj getDogadjajById(Connection conn, int ID) throws SQLException {
@@ -146,7 +154,7 @@ public class DogadjajRepositories {
             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, dogadjaj.getNaslov());
             ps.setString(2, dogadjaj.getOpis());
-            ps.setDate(3, dogadjaj.getDatum() != null ? new Date(dogadjaj.getDatum().getTime()) : null);
+            ps.setDate(3, sqlDate(dogadjaj.getDatum()));
             ps.setString(4, dogadjaj.getVreme());
             ps.setObject(5, dogadjaj.getUpvote());
             ps.setObject(6, dogadjaj.getDownvote());
@@ -192,7 +200,7 @@ public class DogadjajRepositories {
             PreparedStatement ps = conn.prepareStatement(sql);
             ps.setString(1, d.getNaslov());
             ps.setString(2, d.getOpis());
-            ps.setDate(3, d.getDatum() != null ? new Date(d.getDatum().getTime()) : null);
+            ps.setDate(3, sqlDate(d.getDatum()));
             ps.setString(4, d.getVreme());
             ps.setObject(5, d.getUpvote());
             ps.setObject(6, d.getDownvote());
@@ -207,7 +215,7 @@ public class DogadjajRepositories {
             ps.setObject(15, d.getCijena());
             ps.setInt(16, ID);
             ps.executeUpdate();
-            return d;
+            return getDogadjajById(ID);
         } catch (SQLException s) {
             System.out.println(s);
             return null;

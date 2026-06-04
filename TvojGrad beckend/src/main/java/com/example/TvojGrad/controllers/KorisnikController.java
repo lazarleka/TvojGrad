@@ -2,6 +2,7 @@ package com.example.TvojGrad.controllers;
 
 import com.example.TvojGrad.models.Korisnik;
 import com.example.TvojGrad.services.KorisnikService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -65,6 +66,18 @@ public class KorisnikController {
     @PutMapping(value = "/{ID}/odbij-organizatora")
     public Korisnik odbijOrganizatora(@PathVariable("ID") int ID) {
         return this.korisnikService.odbijOrganizatora(ID);
+    }
+
+    @PutMapping(value = "/{ID}/arhiviraj-organizatora")
+    public ResponseEntity<Korisnik> arhivirajOrganizatora(@PathVariable("ID") int ID) {
+        Korisnik korisnik = this.korisnikService.arhivirajOrganizatora(ID);
+        return korisnik != null ? ResponseEntity.ok(korisnik) : ResponseEntity.notFound().build();
+    }
+
+    @PutMapping(value = "/{ID}/vrati-organizatora")
+    public ResponseEntity<Korisnik> vratiOrganizatora(@PathVariable("ID") int ID) {
+        Korisnik korisnik = this.korisnikService.vratiOrganizatora(ID);
+        return korisnik != null ? ResponseEntity.ok(korisnik) : ResponseEntity.notFound().build();
     }
 
     @DeleteMapping(value = "/{ID}")

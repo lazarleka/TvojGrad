@@ -44,9 +44,11 @@ public class PodjiSaMnomZahtevController {
     @PostMapping
     public ResponseEntity<PodjiSaMnomZahtev> kreirajZahtev(@RequestBody PodjiSaMnomZahtev z) {
         PodjiSaMnomZahtev noviZahtev = this.zahtevService.kreirajZahtev(z);
-        return noviZahtev != null
-                ? ResponseEntity.status(HttpStatus.CREATED).body(noviZahtev)
-                : ResponseEntity.badRequest().build();
+        if (noviZahtev != null) {
+            posaljiObavjestenjeZaStatus(noviZahtev);
+            return ResponseEntity.status(HttpStatus.CREATED).body(noviZahtev);
+        }
+        return ResponseEntity.badRequest().build();
     }
 
     @PutMapping(value = "/{ID}")
@@ -82,5 +84,14 @@ public class PodjiSaMnomZahtevController {
     public ResponseEntity<Void> obrisiZahtev(@PathVariable("ID") int ID) {
         this.zahtevService.obrisiZahtev(ID);
         return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping(value = "/{ID}/posiljalac/{KorisnikID}")
+    public ResponseEntity<Void> obrisiPoslatiZahtevNaCekanju(
+            @PathVariable("ID") int ID,
+            @PathVariable("KorisnikID") int KorisnikID) {
+        return this.zahtevService.obrisiPoslatiZahtevNaCekanju(ID, KorisnikID)
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.status(HttpStatus.FORBIDDEN).build();
     }
 }

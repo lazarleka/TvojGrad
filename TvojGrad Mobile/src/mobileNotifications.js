@@ -6,6 +6,21 @@ let notificationsReady = false;
 const deliveredMessageKeys = new Set();
 const deliveredRequestKeys = new Set();
 
+const rememberDeliveredRequest = (key) => {
+  if (deliveredRequestKeys.has(key)) return false;
+  deliveredRequestKeys.add(key);
+  try {
+    const storageKey = "deliveredPsmRequestNotifications";
+    const delivered = JSON.parse(localStorage.getItem(storageKey) || "{}");
+    if (delivered[key]) return false;
+    delivered[key] = Date.now();
+    localStorage.setItem(storageKey, JSON.stringify(delivered));
+  } catch {
+    // In-memory dedupe is enough if local storage is unavailable.
+  }
+  return true;
+};
+
 const loadLocalNotifications = async () => {
   if (!Capacitor.isNativePlatform()) return null;
   return LocalNotifications;
@@ -78,9 +93,10 @@ export const notifyNewChatMessage = async ({ cetId, message }) => {
 
 export const notifyPsmRequestRejected = async ({ request }) => {
   const requestId = request?.ID || request?.id;
-  const key = `psm-rejected:${requestId || Date.now()}`;
-  if (deliveredRequestKeys.has(key)) return;
-  deliveredRequestKeys.add(key);
+  const senderId = request?.PosloZahtev?.ID || request?.posloZahtev?.ID || request?.posloZahtev?.id;
+  const receiverId = request?.PrimioZahtev || request?.primioZahtev;
+  const key = `psm-rejected:${requestId || `${senderId || "sender"}:${receiverId || "receiver"}`}`;
+  if (!rememberDeliveredRequest(key)) return;
 
   const ready = await initMobileNotifications();
   if (!ready) return;

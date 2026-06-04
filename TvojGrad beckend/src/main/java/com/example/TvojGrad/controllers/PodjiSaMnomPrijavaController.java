@@ -76,7 +76,8 @@ public class PodjiSaMnomPrijavaController {
 
     @DeleteMapping(value = "/{ID}")
     public ResponseEntity<Void> obrisiPrijavu(@PathVariable("ID") int ID) {
-        this.prijavaService.obrisiPrijavu(ID);
-        return ResponseEntity.noContent().build();
+        return this.prijavaService.obrisiPrijavu(ID)
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.notFound().build();
     }
 }

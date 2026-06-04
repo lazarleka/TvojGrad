@@ -86,11 +86,9 @@ public class PodjiSaMnomZahtevRepositories {
 
         try {
             conn = DBUtil.open();
-            PreparedStatement ps = conn.prepareStatement(BASE_SELECT + " WHERE (z.PosloZahtev=? AND z.PrimioZahtev=?) OR (z.PosloZahtev=? AND z.PrimioZahtev=?)");
+            PreparedStatement ps = conn.prepareStatement(BASE_SELECT + " WHERE z.PosloZahtev=? AND z.PrimioZahtev=?");
             ps.setInt(1, posloZahtevID);
             ps.setInt(2, primioZahtevID);
-            ps.setInt(3, primioZahtevID);
-            ps.setInt(4, posloZahtevID);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) return mapRow(rs);
             else return null;
@@ -188,6 +186,24 @@ public class PodjiSaMnomZahtevRepositories {
             ps.executeUpdate();
         } catch (SQLException e) {
             System.out.println(e);
+        } finally {
+            if (conn != null) { try { conn.close(); } catch (Exception ex) { System.out.println(ex); } }
+        }
+    }
+
+    public boolean obrisiPoslatiZahtevNaCekanju(int ID, int korisnikID) {
+        Connection conn = null;
+
+        try {
+            conn = DBUtil.open();
+            PreparedStatement ps = conn.prepareStatement(
+                    "DELETE FROM podji_sa_mnom_zahtev WHERE ID=? AND PosloZahtev=? AND LOWER(status) IN ('na cekanju', 'na čekanju')");
+            ps.setInt(1, ID);
+            ps.setInt(2, korisnikID);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.out.println(e);
+            return false;
         } finally {
             if (conn != null) { try { conn.close(); } catch (Exception ex) { System.out.println(ex); } }
         }

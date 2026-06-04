@@ -24,4 +24,17 @@ public class PodjiSaMnomZahtevService {
     public PodjiSaMnomZahtev azurirajZahtev(int ID, PodjiSaMnomZahtev z) { return this.zahtevRepositories.azurirajZahtev(ID, z); }
     public PodjiSaMnomZahtev azurirajStatus(int ID, String status) { return this.zahtevRepositories.azurirajStatus(ID, status); }
     public void obrisiZahtev(int ID) { this.zahtevRepositories.obrisiZahtev(ID); }
+    public boolean obrisiPoslatiZahtevNaCekanju(int ID, int korisnikID) {
+        PodjiSaMnomZahtev zahtev = this.zahtevRepositories.getZahtevById(ID);
+        if (zahtev == null || zahtev.getPosloZahtev() == null || zahtev.getPosloZahtev().getID() == null) {
+            return false;
+        }
+        String status = zahtev.getStatus() != null ? zahtev.getStatus().toLowerCase() : "";
+        boolean naCekanju = !status.contains("prihv") && !status.contains("odbij");
+        if (!zahtev.getPosloZahtev().getID().equals(korisnikID) || !naCekanju) {
+            return false;
+        }
+        this.zahtevRepositories.obrisiZahtev(ID);
+        return true;
+    }
 }

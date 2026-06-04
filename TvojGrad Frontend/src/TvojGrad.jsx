@@ -28,7 +28,9 @@ import {
   getUserId,
   rejectAdminRequest,
   rejectEventRequest,
+  removeOrganizerRole,
   requestEventPromotion,
+  restoreOrganizerRole,
   updateEvent as saveEventChanges,
   uploadEventImage,
 } from "./api";
@@ -819,6 +821,39 @@ export default function TvojGrad() {
             adminRequests={adminRequests}
             organizers={organizers}
             language={language}
+            removeOrganizer={async (organizer) => {
+              const id = organizer?.ID || organizer?.id;
+              const name = `${organizer?.Ime || organizer?.ime || ""} ${organizer?.Prezime || organizer?.prezime || ""}`.trim();
+              try {
+                const updated = await removeOrganizerRole(organizer);
+                setAdminRequests((prev) => prev.filter((u) => String(u.ID || u.id) !== String(id)));
+                setOrganizers((prev) => prev.map((u) => String(u.ID || u.id) === String(id) ? { ...u, ...updated, Status: updated?.Status || updated?.status || "odbijen_organizator" } : u));
+                setEvents((prev) => prev.map((event) => {
+                  const organizerId = event.organizerId || event.Organizator_ID;
+                  const belongsToOrganizer = String(organizerId) === String(id) || (!!name && event.organizer === name);
+                  return belongsToOrganizer ? { ...event, status: "arhivirana", statusRaw: "arhivirana", Status: "arhivirana" } : event;
+                }));
+                toast("Organizator uklonjen, objave arhivirane");
+              } catch {
+                toast("Organizator nije uklonjen");
+              }
+            }}
+            restoreOrganizer={async (organizer) => {
+              const id = organizer?.ID || organizer?.id;
+              const name = `${organizer?.Ime || organizer?.ime || ""} ${organizer?.Prezime || organizer?.prezime || ""}`.trim();
+              try {
+                const updated = await restoreOrganizerRole(organizer);
+                setOrganizers((prev) => prev.map((u) => String(u.ID || u.id) === String(id) ? { ...u, ...updated, Status: updated?.Status || updated?.status || "aktivan" } : u));
+                setEvents((prev) => prev.map((event) => {
+                  const organizerId = event.organizerId || event.Organizator_ID;
+                  const belongsToOrganizer = String(organizerId) === String(id) || (!!name && event.organizer === name);
+                  return belongsToOrganizer ? { ...event, status: "na_cekanju", statusRaw: "na_cekanju", Status: "na_cekanju" } : event;
+                }));
+                toast("Organizator vracen, objave su na cekanju");
+              } catch {
+                toast("Organizator nije vracen");
+              }
+            }}
             approveAdmin={async (id) => {
               try {
                 const updated = await approveAdminRequest(id);

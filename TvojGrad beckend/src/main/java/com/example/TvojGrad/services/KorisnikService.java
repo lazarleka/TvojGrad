@@ -48,7 +48,7 @@ public class KorisnikService {
     }
 
     public Korisnik odbijAdmina(int ID) {
-        return this.korisnikRepositories.azurirajOrganizatorStatus(ID, "odbijen_organizator");
+        return this.korisnikRepositories.arhivirajOrganizatora(ID);
     }
 
     public Korisnik odobriOrganizatora(int ID) {
@@ -56,7 +56,15 @@ public class KorisnikService {
     }
 
     public Korisnik odbijOrganizatora(int ID) {
-        return this.korisnikRepositories.azurirajOrganizatorStatus(ID, "odbijen_organizator");
+        return this.korisnikRepositories.arhivirajOrganizatora(ID);
+    }
+
+    public Korisnik arhivirajOrganizatora(int ID) {
+        return this.korisnikRepositories.arhivirajOrganizatora(ID);
+    }
+
+    public Korisnik vratiOrganizatora(int ID) {
+        return this.korisnikRepositories.vratiOrganizatora(ID);
     }
 
     public Korisnik azurirajProfilnu(int ID, String profilna) {

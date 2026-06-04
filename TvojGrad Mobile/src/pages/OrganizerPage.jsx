@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CATEGORIES, CITIES, G } from "../constants";
 import ImageUpload from "../components/ImageUpload";
-import { formatDisplayDate, formatDisplayTime } from "../api";
+import { formatDisplayDate, formatDisplayTime, toDateInputValue } from "../api";
 import { translateText } from "../i18n";
 
 export default function OrganizerPage({ user, events, addEvent, updateEvent, deleteEvent, promoteEvent, updateEventImg, cities = CITIES, toast, language = "SRB" }) {
@@ -51,7 +51,7 @@ export default function OrganizerPage({ user, events, addEvent, updateEvent, del
     setForm({
       title: event.title || "",
       category: event.category || "Muzika",
-      date: event.date ? String(event.date).slice(0, 10) : "",
+      date: toDateInputValue(event.date || event.Datum),
       time: event.time ? String(event.time).slice(0, 5) : "20:00",
       city: event.city || "Podgorica",
       location: event.address || event.location || "",

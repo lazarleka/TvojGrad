@@ -54,6 +54,11 @@ const requestReceiver = (request, usersById = {}) => {
   return request.PrimioZahtevKorisnik || request.primioZahtevKorisnik || usersById[String(receiverId)] || null;
 };
 
+const isPendingRequestStatus = (status) => {
+  const value = `${status || ""} ${statusLabel(status)}`.toLowerCase();
+  return value.includes("cek") || value.includes("ček") || value.includes("Äek");
+};
+
 const getPrijavaObjavaId = (prijava) => prijava?.Objava_ID || prijava?.objava_ID || prijava?.objavaId;
 
 const messageActivityValue = (message) => {
@@ -70,6 +75,8 @@ const latestActivityForCet = (cet, chatMessages) => {
   const fallback = Number(cet.ID || cet.id || 0);
   return latestMessage || fallback;
 };
+
+const newestFirst = (items) => [...(items || [])].sort((a, b) => Number(b?.ID || b?.id || 0) - Number(a?.ID || a?.id || 0));
 
 export default function ProfilePage({
   user,
@@ -120,6 +127,15 @@ export default function ProfilePage({
   useEffect(() => {
     if (!uid) return;
     loadProfileData();
+  }, [uid]);
+
+  useEffect(() => {
+    if (!uid) return undefined;
+    const intervalId = setInterval(() => {
+      loadRequests();
+      loadCets();
+    }, 4000);
+    return () => clearInterval(intervalId);
   }, [uid]);
 
   useEffect(() => {
@@ -227,7 +243,7 @@ export default function ProfilePage({
       const response = await fetch(`${API_BASE_URL}/zahtevi`);
       if (!response.ok) return;
       const data = await response.json();
-      setDbRequests(data || []);
+      setDbRequests(newestFirst(data));
       const nextUsers = {};
       (data || []).forEach((request) => {
         const sender = request.PosloZahtev || request.posloZahtev;
@@ -308,7 +324,7 @@ export default function ProfilePage({
       const response = await fetch(`${API_BASE_URL}/prijave`);
       if (!response.ok) return;
       const data = await response.json();
-      setDbPrijave(data || []);
+      setDbPrijave(newestFirst(data));
       const nextUsers = {};
       (data || []).forEach((prijava) => {
         const prijavaUser = prijava.Korisnik || prijava.korisnik;
@@ -478,16 +494,24 @@ export default function ProfilePage({
 
   const deleteSentRequest = async (request) => {
     const requestId = request?.ID || request?.id;
-    if (!requestId) return;
+    const senderId = getUserId(request?.PosloZahtev || request?.posloZahtev);
+    if (!requestId || String(senderId) !== String(uid) || !isPendingRequestStatus(request?.status)) return;
+    const previousRequests = dbRequests;
     setDeletingRequestIds((prev) => ({ ...prev, [requestId]: true }));
+    setDbRequests((prev) => prev.filter((item) => String(item.ID || item.id) !== String(requestId)));
     try {
-      const response = await fetch(`${API_BASE_URL}/zahtevi/${requestId}`, {
+      let response = await fetch(`${API_BASE_URL}/zahtevi/${requestId}/posiljalac/${uid}`, {
         method: "DELETE",
       });
+      if (!response.ok) {
+        response = await fetch(`${API_BASE_URL}/zahtevi/${requestId}`, {
+          method: "DELETE",
+        });
+      }
       if (!response.ok) throw new Error("Zahtjev nije obrisan");
-      setDbRequests((prev) => prev.filter((item) => String(item.ID || item.id) !== String(requestId)));
     } catch (err) {
       console.error(err);
+      setDbRequests(previousRequests);
     } finally {
       setDeletingRequestIds((prev) => {
         const next = { ...prev };
@@ -500,11 +524,11 @@ export default function ProfilePage({
   const favoriteList = (backendFavorites.length ? backendFavorites : favEvents).filter(isVisibleFavorite);
   const votedEvents = backendVotedEvents.length ? backendVotedEvents : events.filter((event) => event.myVote);
   const receivedRequests = useMemo(
-    () => dbRequests.filter((request) => String(request.PrimioZahtev || request.primioZahtev) === String(uid)),
+    () => newestFirst(dbRequests.filter((request) => String(request.PrimioZahtev || request.primioZahtev) === String(uid))),
     [dbRequests, uid]
   );
   const sentRequests = useMemo(
-    () => dbRequests.filter((request) => String(getUserId(request.PosloZahtev || request.posloZahtev)) === String(uid)),
+    () => newestFirst(dbRequests.filter((request) => String(getUserId(request.PosloZahtev || request.posloZahtev)) === String(uid))),
     [dbRequests, uid]
   );
   const acceptedPairs = useMemo(() => {
@@ -530,11 +554,11 @@ export default function ProfilePage({
     [dbCets, acceptedPairs, chatMessages]
   );
 
-  const pendingReceived = receivedRequests.filter((request) => statusLabel(request.status).toLowerCase() === "na čekanju");
+  const pendingReceived = receivedRequests.filter((request) => isPendingRequestStatus(request.status));
   const localThreadCount = Object.keys(conversations || {}).length;
   const conversationCount = acceptedCets.length || localThreadCount;
   const totalUnread = unreadCount + pendingReceived.length;
-  const myPsmPrijave = dbPrijave.filter((prijava) => String(getUserId(prijava.Korisnik || prijava.korisnik)) === String(uid));
+  const myPsmPrijave = newestFirst(dbPrijave.filter((prijava) => String(getUserId(prijava.Korisnik || prijava.korisnik)) === String(uid)));
 
   const tabs = [
     { id: "favorites", label: "❤️ Omiljeni", count: favoriteList.length },
@@ -603,6 +627,29 @@ export default function ProfilePage({
     }
   };
 
+  const deletePsmPrijava = async (prijava) => {
+    const prijavaId = prijava.ID || prijava.id;
+    if (!prijavaId) return;
+    const previousPrijave = dbPrijave;
+    setPsmStatusSaving((prev) => ({ ...prev, [prijavaId]: true }));
+    setDbPrijave((prev) => prev.filter((item) => String(item.ID || item.id) !== String(prijavaId)));
+    try {
+      const response = await fetch(`${API_BASE_URL}/prijave/${prijavaId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Prijava nije obrisana");
+    } catch (err) {
+      console.error(err);
+      setDbPrijave(previousPrijave);
+    } finally {
+      setPsmStatusSaving((prev) => {
+        const next = { ...prev };
+        delete next[prijavaId];
+        return next;
+      });
+    }
+  };
+
   const renderEventList = (list, emptyText, metaFor) => (
     list.length > 0 ? list.map((event) => (
       <div key={event.id || event.ID} className="my-event-item profile-event-item" style={{ cursor: "pointer" }} onClick={() => navigate("detail", event)}>
@@ -623,7 +670,7 @@ export default function ProfilePage({
     const displayName = displayUser ? userName(displayUser) : fallbackName;
     const displayEmail = displayUser?.Email || displayUser?.email || "";
     const currentStatus = statusLabel(request.status);
-    const isPending = currentStatus.toLowerCase() === "na čekanju";
+    const isPending = isPendingRequestStatus(request.status);
     const isAccepted = currentStatus.toLowerCase().startsWith("prihva");
     const requestId = request.ID || request.id;
     const deletingRequest = Boolean(deletingRequestIds[requestId]);
@@ -654,7 +701,7 @@ export default function ProfilePage({
             </button>
           </div>
         )}
-        {mode === "sent" && (
+        {mode === "sent" && isPending && (
           <div className="request-actions">
             <button className="action-btn action-delete" disabled={deletingRequest} onClick={() => deleteSentRequest(request)}>
               {deletingRequest ? "Brisanje..." : "Obriši"}
@@ -782,7 +829,7 @@ export default function ProfilePage({
               <h3>💬 Poruke i zahtjevi {totalUnread > 0 && <span className="nav-badge" style={{ fontSize: 11, padding: "2px 7px", width: "auto", height: "auto", borderRadius: 10 }}>{totalUnread} nova</span>}</h3>
 
               {(receivedRequests.length > 0 || incomingRequests.length > 0) && (
-                <div className="request-list">
+                <div className="request-list request-list-scroll">
                   <div className="request-title">Primljeni zahtjevi za "Pođi sa mnom"</div>
                   {receivedRequests.map((request) => renderRequest(request, "received"))}
                   {incomingRequests.map((req) => (
@@ -923,9 +970,6 @@ export default function ProfilePage({
                               {t("reopen")}
                             </button>
                           )}
-                          <button className="action-btn action-reject" disabled={saving} onClick={() => updatePsmPrijavaStatus(prijava, "Otkazan")}>
-                            {t("cancel")}
-                          </button>
                         </div>
                       </div>
                     );

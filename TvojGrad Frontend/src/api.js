@@ -34,6 +34,26 @@ export const formatDisplayTime = (value) => {
   return `${String(timeMatch[1]).padStart(2, "0")}:${timeMatch[2]}`;
 };
 
+export const toDateInputValue = (value) => {
+  if (!value) return "";
+  const raw = String(value);
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const local = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (local) return `${local[3]}-${local[2]}-${local[1]}`;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const toBackendDateValue = (value) => {
+  const date = toDateInputValue(value);
+  return date ? `${date}T12:00:00` : null;
+};
+
 export const absoluteImgSrc = (src) => {
   if (!src) return null;
   if (src.startsWith("data:") || src.startsWith("http://") || src.startsWith("https://")) return src;
@@ -212,13 +232,13 @@ export const createEvent = async (event, userId) => {
     body: JSON.stringify({
       Naslov: event.title,
       Opis: event.desc,
-      Datum: event.date,
+      Datum: toBackendDateValue(event.date || event.Datum),
       Vreme: event.time,
       Upvote: 0,
       Downvote: 0,
       Status: event.promoted ? "na_cekanju_promovisana" : "na_cekanju",
       Grad: event.city,
-      Adresa: event.address || event.location,
+      Adresa: event.location || event.address,
       Organizator_ID: userId,
       Administrator_ID: null,
       Tip_dogadjaja: event.category,
@@ -238,13 +258,13 @@ export const updateEvent = async (eventId, event, userId) => {
     body: JSON.stringify({
       Naslov: event.title,
       Opis: event.desc,
-      Datum: event.date,
+      Datum: toBackendDateValue(event.date || event.Datum),
       Vreme: event.time,
       Upvote: event.votes?.up ?? event.Upvote ?? 0,
       Downvote: event.votes?.down ?? event.Downvote ?? 0,
       Status: event.statusRaw || event.Status || (event.promoted ? "na_cekanju_promovisana" : "na_cekanju"),
       Grad: event.city,
-      Adresa: event.address || event.location,
+      Adresa: event.location || event.address,
       Organizator_ID: event.organizerId || event.Organizator_ID || userId,
       Administrator_ID: event.Administrator_ID || null,
       Tip_dogadjaja: event.category,
@@ -316,14 +336,17 @@ export const deleteEventById = async (eventId) => {
 export const fetchAdminRequests = async () => {
   const response = await fetch(`${API_BASE_URL}/korisnici/organizator-zahtjevi`);
   if (!response.ok) throw new Error("Organizator zahtjevi nisu dostupni");
-  return response.json();
+  const requests = await response.json();
+  return [...(requests || [])].sort((a, b) => Number(b?.ID || b?.id || 0) - Number(a?.ID || a?.id || 0));
 };
 
 export const fetchOrganizers = async () => {
   const response = await fetch(`${API_BASE_URL}/korisnici`);
   if (!response.ok) throw new Error("Organizatori nisu dostupni");
   const users = await response.json();
-  return (users || []).filter((user) => (user.Tip || user.tip) === "organizator");
+  return (users || [])
+    .filter((user) => (user.Tip || user.tip) === "organizator")
+    .sort((a, b) => Number(b?.ID || b?.id || 0) - Number(a?.ID || a?.id || 0));
 };
 
 export const approveAdminRequest = async (userId) => {
@@ -335,5 +358,19 @@ export const approveAdminRequest = async (userId) => {
 export const rejectAdminRequest = async (userId) => {
   const response = await fetch(`${API_BASE_URL}/korisnici/${userId}/odbij-organizatora`, { method: "PUT" });
   if (!response.ok) throw new Error("Organizator nije odbijen");
+  return response.json();
+};
+
+export const removeOrganizerRole = async (user) => {
+  const userId = user?.ID || user?.id;
+  const response = await fetch(`${API_BASE_URL}/korisnici/${userId}/arhiviraj-organizatora`, { method: "PUT" });
+  if (!response.ok) throw new Error("Organizator nije uklonjen");
+  return response.json();
+};
+
+export const restoreOrganizerRole = async (user) => {
+  const userId = user?.ID || user?.id;
+  const response = await fetch(`${API_BASE_URL}/korisnici/${userId}/vrati-organizatora`, { method: "PUT" });
+  if (!response.ok) throw new Error("Organizator nije vracen");
   return response.json();
 };

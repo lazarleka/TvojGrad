@@ -30,11 +30,12 @@ public class OmiljeniDogadjajRepositories {
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
+                java.sql.Date datum = rs.getDate("Datum");
                 Dogadjaj d = new Dogadjaj(
                         rs.getInt("ID"),
                         rs.getString("Naslov"),
                         rs.getString("Opis"),
-                        rs.getDate("Datum"),
+                        datum != null ? datum.toString() : null,
                         rs.getString("Vreme"),
                         rs.getInt("Upvote"),
                         rs.getInt("Downvote"),

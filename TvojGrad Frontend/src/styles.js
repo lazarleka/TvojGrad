@@ -163,6 +163,7 @@ export const css = `
   .inbox-input input:focus{border-color:${G.green}}
   .inbox-empty{display:flex;align-items:center;justify-content:center;flex:1;color:${G.muted};font-size:14px;flex-direction:column;gap:8px}
   .request-list{border:1px solid ${G.border};border-radius:14px;background:${G.paper};padding:1rem;margin-bottom:1rem}
+  .request-list-scroll{max-height:430px;overflow-y:auto;scrollbar-gutter:stable;padding-right:0.85rem}
   .request-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:${G.greenDark};margin-bottom:0.75rem}
   .request-card{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid ${G.border};border-radius:12px;padding:12px;margin-bottom:8px}
   .request-card:last-child{margin-bottom:0}

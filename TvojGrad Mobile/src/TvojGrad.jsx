@@ -22,12 +22,15 @@ import {
   fetchAdminRequests,
   fetchCities,
   fetchEventById,
+  fetchOrganizers,
   fetchOrganizerEvents,
   getStoredUser,
   getUserId,
   rejectAdminRequest,
   rejectEventRequest,
+  removeOrganizerRole,
   requestEventPromotion,
+  restoreOrganizerRole,
   updateEvent as saveEventChanges,
   uploadEventImage,
 } from "./api";
@@ -109,6 +112,7 @@ export default function TvojGrad() {
   });
   const [cities, setCities] = useState(["Svi gradovi"]);
   const [adminRequests, setAdminRequests] = useState([]);
+  const [organizers, setOrganizers] = useState([]);
   const [psmRequests, setPsmRequests] = useState({});
   const [psmListings, setPsmListings] = useState({});
   const [conversations, setConversations] = useState({});
@@ -194,9 +198,10 @@ export default function TvojGrad() {
 
   const loadAdminData = async () => {
     try {
-      const [allEvents, requests] = await Promise.all([fetchAdminEvents(), fetchAdminRequests()]);
+      const [allEvents, requests, allOrganizers] = await Promise.all([fetchAdminEvents(), fetchAdminRequests(), fetchOrganizers()]);
       setEvents(allEvents);
       setAdminRequests(requests || []);
+      setOrganizers(allOrganizers || []);
     } catch (err) {
       console.error(err);
       toast("Admin podaci nisu učitani");
@@ -225,8 +230,11 @@ export default function TvojGrad() {
     let cancelled = false;
     let initialChatScan = true;
     let chatPollId;
+    let websocketStarted = false;
     const handledMessageKeys = new Set();
+    const handledRequestKeys = new Set();
     const readStorageKey = `readCetMessages:${backendUserId}`;
+    const rejectedRequestStorageKey = `rejectedPsmRequests:${backendUserId}`;
 
     const getReadMap = () => {
       try {
@@ -253,6 +261,24 @@ export default function TvojGrad() {
         setBackendUnreadCetIds((prev) => ({ ...prev, [cetId]: true }));
         toast("Stigla je nova poruka");
         void notifyNewChatMessage({ cetId, message });
+      }
+      return true;
+    };
+
+    const shouldNotifyRejectedRequest = (request) => {
+      const requestId = request?.ID || request?.id;
+      const senderId = getUserId(request.PosloZahtev || request.posloZahtev);
+      const receiverId = request?.PrimioZahtev || request?.primioZahtev;
+      const key = `psm-rejected:${requestId || `${senderId || "sender"}:${receiverId || "receiver"}`}`;
+      if (handledRequestKeys.has(key)) return false;
+      handledRequestKeys.add(key);
+      try {
+        const delivered = JSON.parse(localStorage.getItem(rejectedRequestStorageKey) || "{}");
+        if (delivered[key]) return false;
+        delivered[key] = Date.now();
+        localStorage.setItem(rejectedRequestStorageKey, JSON.stringify(delivered));
+      } catch {
+        // In-memory dedupe still prevents repeated websocket callbacks in this session.
       }
       return true;
     };
@@ -300,7 +326,8 @@ export default function TvojGrad() {
           initialChatScan = false;
         }
 
-        if (!cancelled) {
+        if (!cancelled && !websocketStarted) {
+          websocketStarted = true;
           window.global = window.global || window;
           const { default: SockJS } = await import("sockjs-client");
           if (cancelled) return;
@@ -321,7 +348,7 @@ export default function TvojGrad() {
                 const request = JSON.parse(message.body);
                 const senderId = getUserId(request.PosloZahtev || request.posloZahtev);
                 const status = String(request.status || "").toLowerCase();
-                if (String(senderId) === String(backendUserId) && status.includes("odbij")) {
+                if (String(senderId) === String(backendUserId) && status.includes("odbij") && shouldNotifyRejectedRequest(request)) {
                   toast("Pođi sa mnom zahtjev je odbijen");
                   void notifyPsmRequestRejected({ request });
                 }
@@ -828,11 +855,46 @@ export default function TvojGrad() {
             rejectEvent={rejectEvent}
             deleteEvent={deleteEvent}
             adminRequests={adminRequests}
+            organizers={organizers}
             language={language}
+            removeOrganizer={async (organizer) => {
+              const id = organizer?.ID || organizer?.id;
+              const name = `${organizer?.Ime || organizer?.ime || ""} ${organizer?.Prezime || organizer?.prezime || ""}`.trim();
+              try {
+                const updated = await removeOrganizerRole(organizer);
+                setAdminRequests((prev) => prev.filter((u) => String(u.ID || u.id) !== String(id)));
+                setOrganizers((prev) => prev.map((u) => String(u.ID || u.id) === String(id) ? { ...u, ...updated, Status: updated?.Status || updated?.status || "odbijen_organizator" } : u));
+                setEvents((prev) => prev.map((event) => {
+                  const organizerId = event.organizerId || event.Organizator_ID;
+                  const belongsToOrganizer = String(organizerId) === String(id) || (!!name && event.organizer === name);
+                  return belongsToOrganizer ? { ...event, status: "arhivirana", statusRaw: "arhivirana", Status: "arhivirana" } : event;
+                }));
+                toast("Organizator uklonjen, objave arhivirane");
+              } catch {
+                toast("Organizator nije uklonjen");
+              }
+            }}
+            restoreOrganizer={async (organizer) => {
+              const id = organizer?.ID || organizer?.id;
+              const name = `${organizer?.Ime || organizer?.ime || ""} ${organizer?.Prezime || organizer?.prezime || ""}`.trim();
+              try {
+                const updated = await restoreOrganizerRole(organizer);
+                setOrganizers((prev) => prev.map((u) => String(u.ID || u.id) === String(id) ? { ...u, ...updated, Status: updated?.Status || updated?.status || "aktivan" } : u));
+                setEvents((prev) => prev.map((event) => {
+                  const organizerId = event.organizerId || event.Organizator_ID;
+                  const belongsToOrganizer = String(organizerId) === String(id) || (!!name && event.organizer === name);
+                  return belongsToOrganizer ? { ...event, status: "na_cekanju", statusRaw: "na_cekanju", Status: "na_cekanju" } : event;
+                }));
+                toast("Organizator vracen, objave su na cekanju");
+              } catch {
+                toast("Organizator nije vracen");
+              }
+            }}
             approveAdmin={async (id) => {
               try {
-                await approveAdminRequest(id);
+                const updated = await approveAdminRequest(id);
                 setAdminRequests((prev) => prev.filter((u) => String(u.ID || u.id) !== String(id)));
+                setOrganizers((prev) => prev.map((u) => String(u.ID || u.id) === String(id) ? { ...u, ...updated } : u));
                 toast("Organizator odobren");
               } catch {
                 toast("Organizator nije odobren");
@@ -840,8 +902,9 @@ export default function TvojGrad() {
             }}
             rejectAdmin={async (id) => {
               try {
-                await rejectAdminRequest(id);
+                const updated = await rejectAdminRequest(id);
                 setAdminRequests((prev) => prev.filter((u) => String(u.ID || u.id) !== String(id)));
+                setOrganizers((prev) => prev.map((u) => String(u.ID || u.id) === String(id) ? { ...u, ...updated } : u));
                 toast("Zahtjev organizatora odbijen");
               } catch {
                 toast("Zahtjev organizatora nije odbijen");

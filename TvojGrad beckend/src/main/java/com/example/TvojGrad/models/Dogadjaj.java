@@ -1,7 +1,6 @@
 package com.example.TvojGrad.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.Date;
 
 public class Dogadjaj {
 
@@ -15,7 +14,7 @@ public class Dogadjaj {
     private String Opis;
 
     @JsonProperty("Datum")
-    private Date Datum;
+    private String Datum;
 
     @JsonProperty("Vreme")
     private String Vreme;
@@ -60,7 +59,7 @@ public class Dogadjaj {
             Integer ID,
             String Naslov,
             String Opis,
-            Date Datum,
+            String Datum,
             String Vreme,
             Integer Upvote,
             Integer Downvote,
@@ -82,7 +81,7 @@ public class Dogadjaj {
             Integer ID,
             String Naslov,
             String Opis,
-            Date Datum,
+            String Datum,
             String Vreme,
             Integer Upvote,
             Integer Downvote,
@@ -119,7 +118,7 @@ public class Dogadjaj {
     public Integer getID() { return ID; }
     public String getNaslov() { return Naslov; }
     public String getOpis() { return Opis; }
-    public Date getDatum() { return Datum; }
+    public String getDatum() { return Datum; }
     public String getVreme() { return Vreme; }
     public Integer getUpvote() { return Upvote; }
     public Integer getDownvote() { return Downvote; }
@@ -137,7 +136,7 @@ public class Dogadjaj {
     public void setID(Integer ID) { this.ID = ID; }
     public void setNaslov(String naslov) { this.Naslov = naslov; }
     public void setOpis(String opis) { this.Opis = opis; }
-    public void setDatum(Date datum) { this.Datum = datum; }
+    public void setDatum(String datum) { this.Datum = datum; }
     public void setVreme(String vreme) { this.Vreme = vreme; }
     public void setUpvote(Integer upvote) { this.Upvote = upvote; }
     public void setDownvote(Integer downvote) { this.Downvote = downvote; }
