@@ -13,6 +13,7 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
   const [psmPrijave, setPsmPrijave] = useState([]);
   const [psmLoading, setPsmLoading] = useState(false);
   const [sentPsmRequests, setSentPsmRequests] = useState({});
+  const [justSentPsmRequests, setJustSentPsmRequests] = useState({});
   const [cetsByUser, setCetsByUser] = useState({});
   const [sendingPsmRequests, setSendingPsmRequests] = useState({});
 
@@ -43,6 +44,7 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
   useEffect(() => {
     if (!uid) {
       setSentPsmRequests({});
+      setJustSentPsmRequests({});
       setCetsByUser({});
       return;
     }
@@ -79,9 +81,6 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
           const receiverId = zahtev.PrimioZahtev || zahtev.primioZahtev;
           if (String(senderId) === String(uid) && receiverId) {
             sent[String(receiverId)] = zahtev;
-          }
-          if (String(receiverId) === String(uid) && senderId) {
-            sent[String(senderId)] = zahtev;
           }
         });
       }
@@ -248,6 +247,10 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
       toast && toast("Vec imate zahtjev ka ovoj osobi.");
       return;
     }
+    if (justSentPsmRequests[String(targetId)]) {
+      toast && toast("Zahtjev je poslat.");
+      return;
+    }
     if (sendingPsmRequests[String(targetId)]) return;
 
     try {
@@ -268,6 +271,7 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
       const savedReceiverId = savedRequest.PrimioZahtev || savedRequest.primioZahtev;
       if (String(savedSenderId) === String(uid) && String(savedReceiverId) === String(targetId)) {
         setSentPsmRequests((prev) => ({ ...prev, [String(targetId)]: savedRequest }));
+        setJustSentPsmRequests((prev) => ({ ...prev, [String(targetId)]: true }));
         toast && toast("Zahtjev je poslat.");
       } else {
         setSentPsmRequests((prev) => ({ ...prev, [String(targetId)]: savedRequest }));
@@ -427,6 +431,7 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
                       const applicantId = getPrijavaUserId(prijava, korisnik);
                       const existingCet = cetsByUser[String(applicantId)];
                       const requestSent = Boolean(sentPsmRequests[String(applicantId)]);
+                      const requestJustSent = Boolean(justSentPsmRequests[String(applicantId)]);
                       const requestSending = Boolean(sendingPsmRequests[String(applicantId)]);
                       const applicantClosed = isClosedStatus(prijava.Status || prijava.status);
                       const fullName = `${korisnik?.Ime || korisnik?.ime || ""} ${korisnik?.Prezime || korisnik?.prezime || ""}`.trim() || korisnik?.Email || "Korisnik";
@@ -451,24 +456,24 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
                                   whiteSpace: "nowrap",
                                 }}
                               >
-                                Otvori chat
+                                Otvori cet
                               </button>
                             ) : canSendRequest ? (
                               <button
                                 onClick={() => handleSendPsmZahtev(korisnik, prijava.ID, applicantId)}
-                                disabled={requestSent || requestSending}
+                                disabled={requestSent || requestJustSent || requestSending}
                                 style={{
-                                  border: requestSent || requestSending ? "1px solid #d7dedb" : `1px solid ${G.green}`,
-                                  background: requestSent || requestSending ? "#f3f6f5" : "#fff",
-                                  color: requestSent || requestSending ? G.muted : G.green,
+                                  border: requestSent || requestJustSent || requestSending ? "1px solid #d7dedb" : `1px solid ${G.green}`,
+                                  background: requestSent || requestJustSent || requestSending ? "#f3f6f5" : "#fff",
+                                  color: requestSent || requestJustSent || requestSending ? G.muted : G.green,
                                   borderRadius: 10,
                                   padding: "8px 10px",
-                                  cursor: requestSent || requestSending ? "not-allowed" : "pointer",
+                                  cursor: requestSent || requestJustSent || requestSending ? "not-allowed" : "pointer",
                                   fontWeight: 700,
                                   whiteSpace: "nowrap",
                                 }}
                               >
-                                {requestSent ? "Već imate zahtjev ka ovoj osobi" : requestSending ? "Slanje..." : "Pošalji zahtjev"}
+                                {requestJustSent ? "Zahtjev poslat" : requestSent ? "Već imate zahtjev ka ovoj osobi" : requestSending ? "Slanje..." : "Pošalji zahtjev"}
                               </button>
                             ) : (
                               <span style={{ color: G.muted, fontSize: 13 }}>

@@ -4,6 +4,7 @@ import com.example.TvojGrad.models.PodjiSaMnomZahtev;
 import com.example.TvojGrad.services.PodjiSaMnomZahtevService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -14,9 +15,11 @@ import java.util.List;
 public class PodjiSaMnomZahtevController {
 
     private final PodjiSaMnomZahtevService zahtevService;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public PodjiSaMnomZahtevController(PodjiSaMnomZahtevService _zahtevService) {
+    public PodjiSaMnomZahtevController(PodjiSaMnomZahtevService _zahtevService, SimpMessagingTemplate messagingTemplate) {
         this.zahtevService = _zahtevService;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @GetMapping
@@ -57,7 +60,22 @@ public class PodjiSaMnomZahtevController {
             @PathVariable("ID") int ID,
             @PathVariable("Status") String Status) {
         PodjiSaMnomZahtev azuriran = this.zahtevService.azurirajStatus(ID, Status);
+        if (azuriran != null) {
+            posaljiObavjestenjeZaStatus(azuriran);
+        }
         return azuriran != null ? ResponseEntity.ok(azuriran) : ResponseEntity.badRequest().build();
+    }
+
+    private void posaljiObavjestenjeZaStatus(PodjiSaMnomZahtev zahtev) {
+        Integer posiljalacID = zahtev.getPosloZahtev() != null ? zahtev.getPosloZahtev().getID() : null;
+        Integer primalacID = zahtev.getPrimioZahtev();
+
+        if (posiljalacID != null) {
+            messagingTemplate.convertAndSend("/topic/korisnik/" + posiljalacID + "/zahtevi", zahtev);
+        }
+        if (primalacID != null && !primalacID.equals(posiljalacID)) {
+            messagingTemplate.convertAndSend("/topic/korisnik/" + primalacID + "/zahtevi", zahtev);
+        }
     }
 
     @DeleteMapping(value = "/{ID}")

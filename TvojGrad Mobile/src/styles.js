@@ -56,8 +56,8 @@ export const css = `
   .divider{height:1px;background:${G.border};margin:2rem 0}
 
   /* EVENT CARDS */
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.25rem}
-  .card{background:#fff;border:1px solid ${G.border};border-radius:16px;overflow:hidden;cursor:pointer;transition:all 0.2s;position:relative}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.25rem;align-items:stretch}
+  .card{background:#fff;border:1px solid ${G.border};border-radius:16px;overflow:hidden;cursor:pointer;transition:all 0.2s;position:relative;display:flex;flex-direction:column;height:100%;min-height:380px}
   .card:hover{border-color:${G.green};box-shadow:0 8px 24px rgba(29,158,117,0.12);transform:translateY(-2px)}
   .card-img{height:160px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;background:#eee}
   .card-img img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
@@ -67,16 +67,18 @@ export const css = `
   .card-promo{position:absolute;top:10px;left:10px;background:#F4A62A;color:#5F3700;font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;z-index:2;box-shadow:0 2px 8px rgba(95,55,0,0.16)}
   .card-fav{position:absolute;top:10px;right:10px;background:#fff;border:none;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,0.12);z-index:2;transition:transform 0.15s}
   .card-fav:hover{transform:scale(1.15)}
-  .card-body{padding:1rem}
+  .card-body{padding:1rem;display:flex;flex-direction:column;flex:1;min-height:0}
   .card-cat{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px}
-  .card-title{font-size:15px;font-weight:600;margin-bottom:8px;color:${G.ink};line-height:1.3}
-  .card-meta{display:flex;flex-direction:column;gap:3px}
-  .card-meta-row{font-size:12px;color:${G.muted};display:flex;align-items:center;gap:5px}
-  .card-footer{display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;border-top:1px solid ${G.border}}
+  .card-title{font-size:15px;font-weight:600;margin-bottom:8px;color:${G.ink};line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em}
+  .card-meta{display:flex;flex-direction:column;gap:3px;min-height:74px}
+  .card-meta-row{font-size:12px;color:${G.muted};display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;line-height:1.35}
+  .card-organizer{-webkit-line-clamp:1}
+  .card-footer{display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;border-top:1px solid ${G.border};margin-top:auto;min-height:58px}
   .votes{display:flex;gap:6px}
   .vote-btn{background:none;border:1px solid ${G.border};border-radius:20px;padding:4px 10px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;color:${G.muted};font-family:'DM Sans',sans-serif;transition:all 0.15s}
   .vote-btn:hover,.vote-btn.up-active{background:${G.greenLight};border-color:${G.green};color:${G.greenDark}}
   .vote-btn.down-active{background:#fdf0f0;border-color:${G.danger};color:${G.danger}}
+  .vote-state-placeholder{display:none}
   .price-tag{font-size:12px;font-weight:600;color:${G.green}}
 
   /* DETAIL */
@@ -334,11 +336,12 @@ export const css = `
     .event-map-list{max-height:260px}
     .main{padding:1rem}
     .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:0.75rem}
-    .card{border-radius:12px}
+    .card{border-radius:12px;min-height:338px}
     .card-img{height:128px}
     .card-body{padding:0.8rem}
-    .card-title{font-size:14px}
-    .card-footer{padding:0.7rem 0.8rem}
+    .card-title{font-size:14px;min-height:2.6em}
+    .card-meta{min-height:70px}
+    .card-footer{padding:0.7rem 0.8rem;min-height:76px}
     .votes{width:100%;justify-content:space-between}
     .vote-btn{padding:4px 8px;font-size:11px}
     .price-tag,.vote-state{font-size:11px}
@@ -375,7 +378,8 @@ export const css = `
     .tab{white-space:nowrap;padding:10px 14px}
     .my-event-item,.request-card{align-items:flex-start;flex-direction:column}
     .my-event-actions,.request-actions{align-items:stretch;width:100%;flex-direction:row;flex-wrap:wrap}
-    .card-footer{gap:0.75rem;align-items:flex-start;flex-direction:column}
+    .card-footer{gap:0.5rem;align-items:stretch;flex-direction:column}
+    .vote-state-placeholder{display:block;visibility:hidden}
     .toast-wrap{left:1rem;right:1rem;bottom:1rem}
   }
 
@@ -385,12 +389,14 @@ export const css = `
     .admin-stats{grid-template-columns:1fr}
     .stat-card{padding:1rem}
     .grid{gap:0.6rem}
+    .card{min-height:310px}
     .card-img{height:110px}
     .card-img-emoji{font-size:42px}
     .card-cat{font-size:10px}
     .card-title{font-size:13px}
+    .card-meta{min-height:66px}
     .card-meta-row{font-size:11px}
-    .card-footer{gap:0.5rem}
+    .card-footer{gap:0.45rem;min-height:72px}
     .detail-hero{height:210px}
     .detail-hero-content{padding:1rem}
     .detail-hero-emoji{font-size:40px}

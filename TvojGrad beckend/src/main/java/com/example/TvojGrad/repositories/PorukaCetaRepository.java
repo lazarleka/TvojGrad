@@ -56,6 +56,30 @@ public class PorukaCetaRepository {
         }
     }
 
+    public List<Integer> getKorisniciZaCet(int cetID) {
+        Connection conn = null;
+        List<Integer> korisnici = new ArrayList<>();
+
+        try {
+            conn = DBUtil.open();
+            PreparedStatement ps = conn.prepareStatement("SELECT Posiljalac_ID, Primalac_ID FROM podji_sa_mnom_cet WHERE ID=?");
+            ps.setInt(1, cetID);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                int posiljalacID = rs.getInt("Posiljalac_ID");
+                int primalacID = rs.getInt("Primalac_ID");
+                if (posiljalacID > 0) korisnici.add(posiljalacID);
+                if (primalacID > 0 && primalacID != posiljalacID) korisnici.add(primalacID);
+            }
+        } catch (Exception e) {
+            System.out.println("Greska pri citanju korisnika ceta: " + e);
+        } finally {
+            if (conn != null) { try { conn.close(); } catch (Exception ex) {} }
+        }
+
+        return korisnici;
+    }
+
     public PorukaCeta sacuvajPoruku(PorukaCeta p) {
         Connection conn = null;
         try {

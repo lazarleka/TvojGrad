@@ -24,6 +24,7 @@ const isPendingOrganizer = (user) => (user.Status || user.status) === "na_cekanj
 
 export default function AdminPage({
   events,
+  navigate,
   approveEvent,
   rejectEvent,
   deleteEvent,
@@ -40,6 +41,9 @@ export default function AdminPage({
   const shown = tab === "pending" ? pending : tab === "approved" ? approved : rejected;
   const organizerList = organizers.length ? organizers : adminRequests;
   const organizerPendingCount = organizerList.filter(isPendingOrganizer).length;
+  const openEvent = (event) => {
+    if (navigate) navigate("detail", event);
+  };
 
   return (
     <div className="main">
@@ -114,7 +118,7 @@ export default function AdminPage({
               </thead>
               <tbody>
                 {shown.map((event) => (
-                  <tr key={event.id}>
+                  <tr key={event.id} onClick={() => openEvent(event)} style={{ cursor: "pointer" }}>
                     <td>
                       <strong>{event.coverImg ? "" : event.emoji} {translateText(event.title, language)}</strong>
                       {event.status === "na_cekanju_promovisana" && <div style={{ fontSize: 11, color: G.warning, fontWeight: 700 }}>Traži promociju</div>}
@@ -125,7 +129,7 @@ export default function AdminPage({
                     <td>{event.organizer || "/"}</td>
                     <td>{eventStatusLabel(event.status)}</td>
                     <td>{event.votes.up} / {event.votes.down}</td>
-                    <td>
+                    <td onClick={(ev) => ev.stopPropagation()}>
                       <div style={{ display: "flex", gap: 4 }}>
                         {event.status !== "approved" && <button className="action-btn action-approve" onClick={() => approveEvent(event.id)}>Odobri</button>}
                         {!["rejected", "odbijena"].includes(event.status) && <button className="action-btn action-reject" onClick={() => rejectEvent(event.id)}>Odbij</button>}

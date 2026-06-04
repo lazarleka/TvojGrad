@@ -74,19 +74,17 @@ export default function EventCard({ event: e, onUpvote, onDownvote, toggleFav, i
             👎 {votes.down}
           </button>
         </div>
-        {myVote && (
-          <span
-            className="vote-state"
-            style={{
-              color: myVote === "up" ? "#1D9E75" : "#e74c3c",
-              fontSize: 12,
-              fontWeight: 700,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {myVote === "up" ? t("liked") : t("disliked")}
-          </span>
-        )}
+        <span
+          className={`vote-state ${myVote ? "" : "vote-state-placeholder"}`}
+          style={{
+            color: myVote === "up" ? "#1D9E75" : "#e74c3c",
+            fontSize: 12,
+            fontWeight: 700,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {myVote === "up" ? t("liked") : myVote === "down" ? t("disliked") : "Rezervisano"}
+        </span>
         <span className="price-tag">
           {price == null || price === 0 ? t("free") : `${price} EUR`}
         </span>

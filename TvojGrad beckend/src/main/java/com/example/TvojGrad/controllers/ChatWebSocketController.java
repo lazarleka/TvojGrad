@@ -28,6 +28,9 @@ public class ChatWebSocketController {
             // 2. Prolijedi poruku SVIMA koji slušaju sobu sa tim ID-jem četa
             // Klijenti na frontendu će slušati rutu: /topic/cet/{ID_CETA}
             messagingTemplate.convertAndSend("/topic/cet/" + poruka.getCetID(), snimljenaPoruka);
+            porukaRepository.getKorisniciZaCet(poruka.getCetID()).forEach((korisnikID) ->
+                    messagingTemplate.convertAndSend("/topic/korisnik/" + korisnikID + "/poruke", snimljenaPoruka)
+            );
         }
     }
 }

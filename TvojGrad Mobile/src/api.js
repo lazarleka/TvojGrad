@@ -111,7 +111,7 @@ export const formatEvent = (event) => ({
   coverColor: getColorByCategory(event.Tip_dogadjaja),
   imagePath: event.slika_1 || event.Slika_1 || event.imagePath || null,
   coverImg: absoluteImgSrc(event.slika_1 || event.Slika_1 || null),
-  emoji: event.slika_1 ? null : (event.Emoji || getEmojiByCategory(event.Tip_dogadjaja)),
+  emoji: event.Emoji || getEmojiByCategory(event.Tip_dogadjaja),
   promoted: event.Status === "promovisana",
   price: event.Cijena,
   statusRaw: event.Status,

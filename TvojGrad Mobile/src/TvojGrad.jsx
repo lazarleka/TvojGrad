@@ -32,7 +32,7 @@ import {
   uploadEventImage,
 } from "./api";
 import { Client } from "@stomp/stompjs";
-import { initMobileNotifications, notifyNewChatMessage } from "./mobileNotifications";
+import { initMobileNotifications, notifyNewChatMessage, notifyPsmRequestRejected } from "./mobileNotifications";
 
 const PAGE_PATHS = {
   home: "/",
@@ -45,6 +45,7 @@ const PAGE_PATHS = {
 };
 
 const getEventId = (event) => event?.id ?? event?.ID;
+const normalizeEventTitle = (title) => String(title || "").trim().toLowerCase();
 const isPublicEvent = (event) =>
   event?.status === "approved" ||
   event?.statusRaw === "odobrena" ||
@@ -151,6 +152,17 @@ export default function TvojGrad() {
   }, [route.page, route.profileTab]);
 
   useEffect(() => {
+    const protectedPage = page === "profile" || page === "organizer" || page === "admin";
+    const missingUser = protectedPage && !user;
+    const wrongOrganizer = page === "organizer" && user && userRole !== "organizator";
+    const wrongAdmin = page === "admin" && user && userRole !== "administrator";
+
+    if (missingUser || wrongOrganizer || wrongAdmin) {
+      navigate("home");
+    }
+  }, [page, user, userRole]);
+
+  useEffect(() => {
     if (route.page !== "detail" || !route.eventId) {
       setRouteEvent(null);
       return;
@@ -211,6 +223,9 @@ export default function TvojGrad() {
 
     let client;
     let cancelled = false;
+    let initialChatScan = true;
+    let chatPollId;
+    const handledMessageKeys = new Set();
     const readStorageKey = `readCetMessages:${backendUserId}`;
 
     const getReadMap = () => {
@@ -223,6 +238,23 @@ export default function TvojGrad() {
 
     const saveReadMap = (map) => {
       localStorage.setItem(readStorageKey, JSON.stringify(map));
+    };
+
+    const messageKeyFor = (cetId, message) => {
+      const messageId = message?.ID || message?.id;
+      return `${cetId}:${messageId || message?.Vrijeme || message?.vrijeme || message?.Tekst || Date.now()}`;
+    };
+
+    const handleIncomingMessage = (cetId, message, notify = true) => {
+      const key = messageKeyFor(cetId, message);
+      if (handledMessageKeys.has(key)) return false;
+      handledMessageKeys.add(key);
+      if (notify) {
+        setBackendUnreadCetIds((prev) => ({ ...prev, [cetId]: true }));
+        toast("Stigla je nova poruka");
+        void notifyNewChatMessage({ cetId, message });
+      }
+      return true;
     };
 
     const loadGlobalChatNotifications = async () => {
@@ -245,17 +277,30 @@ export default function TvojGrad() {
               .map((m) => Number(m.ID || 0))
           );
 
-          if (readMap[cet.ID] == null) {
+          const latestOtherMessage = [...(messages || [])]
+            .filter((m) => String(m.Posiljalac_ID || m.posiljalacID) !== String(backendUserId))
+            .sort((a, b) => Number(b.ID || 0) - Number(a.ID || 0))[0];
+
+          if (readMap[cet.ID] == null && initialChatScan) {
             readMap[cet.ID] = latestMessageId;
           } else if (latestOtherMessageId > Number(readMap[cet.ID] || 0)) {
             nextUnread[cet.ID] = true;
+            readMap[cet.ID] = latestOtherMessageId;
+            if (!initialChatScan && latestOtherMessage) {
+              handleIncomingMessage(cet.ID, latestOtherMessage);
+            }
+          } else if (readMap[cet.ID] == null) {
+            readMap[cet.ID] = latestMessageId;
           }
         }));
 
         saveReadMap(readMap);
-        if (!cancelled) setBackendUnreadCetIds(nextUnread);
+        if (!cancelled) {
+          setBackendUnreadCetIds((prev) => ({ ...prev, ...nextUnread }));
+          initialChatScan = false;
+        }
 
-        if (!cancelled && (cets || []).length > 0) {
+        if (!cancelled) {
           window.global = window.global || window;
           const { default: SockJS } = await import("sockjs-client");
           if (cancelled) return;
@@ -264,16 +309,22 @@ export default function TvojGrad() {
             webSocketFactory: () => new SockJS(`${API_BASE_URL}/ws-tvojgrad`),
             reconnectDelay: 3000,
             onConnect: () => {
-              (cets || []).forEach((cet) => {
-                client.subscribe(`/topic/cet/${cet.ID}`, (message) => {
-                  const received = JSON.parse(message.body);
-                  const senderId = received.Posiljalac_ID || received.posiljalacID;
-                  if (String(senderId) !== String(backendUserId)) {
-                    setBackendUnreadCetIds((prev) => ({ ...prev, [cet.ID]: true }));
-                    toast("Stigla je nova poruka");
-                    void notifyNewChatMessage({ cetId: cet.ID, message: received });
-                  }
-                });
+              client.subscribe(`/topic/korisnik/${backendUserId}/poruke`, (message) => {
+                const received = JSON.parse(message.body);
+                const senderId = received.Posiljalac_ID || received.posiljalacID;
+                const cetId = received.Cet_ID || received.cetID;
+                if (String(senderId) !== String(backendUserId)) {
+                  handleIncomingMessage(cetId, received);
+                }
+              });
+              client.subscribe(`/topic/korisnik/${backendUserId}/zahtevi`, (message) => {
+                const request = JSON.parse(message.body);
+                const senderId = getUserId(request.PosloZahtev || request.posloZahtev);
+                const status = String(request.status || "").toLowerCase();
+                if (String(senderId) === String(backendUserId) && status.includes("odbij")) {
+                  toast("Pođi sa mnom zahtjev je odbijen");
+                  void notifyPsmRequestRejected({ request });
+                }
               });
             },
           });
@@ -285,9 +336,11 @@ export default function TvojGrad() {
     };
 
     loadGlobalChatNotifications();
+    chatPollId = setInterval(loadGlobalChatNotifications, 4000);
 
     return () => {
       cancelled = true;
+      if (chatPollId) clearInterval(chatPollId);
       if (client) client.deactivate();
     };
   }, [backendUserId]);
@@ -420,6 +473,17 @@ export default function TvojGrad() {
   };
 
   const addEvent = async (newEv) => {
+    const newTitle = normalizeEventTitle(newEv?.title || newEv?.Naslov);
+    if (!newTitle) {
+      toast("Greška u unosu podataka");
+      return false;
+    }
+    const titleExists = events.some((event) => normalizeEventTitle(event.title || event.Naslov) === newTitle);
+    if (titleExists) {
+      toast("Događaj sa ovim imenom već postoji");
+      return false;
+    }
+
     try {
       let saved = await createEvent(newEv, backendUserId);
       if (newEv.coverFile) {
@@ -427,9 +491,11 @@ export default function TvojGrad() {
       }
       setEvents((prev) => [saved, ...prev.filter((e) => e.id !== saved.id)]);
       toast(newEv.promoted ? "Događaj dodat - čeka odobrenje promocije" : "Događaj dodat - čeka odobrenje");
+      return true;
     } catch (err) {
       console.error(err);
-      toast("Događaj nije sačuvan");
+      toast("Greška u unosu podataka");
+      return false;
     }
   };
 
@@ -750,12 +816,14 @@ export default function TvojGrad() {
             promoteEvent={promoteEvent}
             updateEventImg={updateEventImg}
             cities={cities}
+            toast={toast}
             language={language}
           />
         )}
         {page === "admin" && userRole === "administrator" && (
           <AdminPage
             events={events}
+            navigate={navigate}
             approveEvent={approveEvent}
             rejectEvent={rejectEvent}
             deleteEvent={deleteEvent}

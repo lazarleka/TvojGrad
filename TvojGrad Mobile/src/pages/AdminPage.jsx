@@ -11,12 +11,15 @@ const eventStatusLabel = (status) => {
   return status || "/";
 };
 
-export default function AdminPage({ events, approveEvent, rejectEvent, deleteEvent, adminRequests = [], approveAdmin, rejectAdmin, language = "SRB" }) {
+export default function AdminPage({ events, navigate, approveEvent, rejectEvent, deleteEvent, adminRequests = [], approveAdmin, rejectAdmin, language = "SRB" }) {
   const [tab, setTab] = useState("pending");
   const pending = events.filter((e) => ["pending", "na_cekanju", "na_cekanju_promovisana"].includes(e.status));
   const approved = events.filter((e) => e.status === "approved");
   const rejected = events.filter((e) => ["rejected", "odbijena"].includes(e.status));
   const shown = tab === "pending" ? pending : tab === "approved" ? approved : rejected;
+  const openEvent = (event) => {
+    if (navigate) navigate("detail", event);
+  };
 
   return (
     <div className="main">
@@ -83,7 +86,7 @@ export default function AdminPage({ events, approveEvent, rejectEvent, deleteEve
               </thead>
               <tbody>
                 {shown.map((e) => (
-                  <tr key={e.id}>
+                  <tr key={e.id} onClick={() => openEvent(e)} style={{ cursor: "pointer" }}>
                     <td>
                       <strong>{e.coverImg ? "" : e.emoji} {translateText(e.title, language)}</strong>
                       {e.status === "na_cekanju_promovisana" && <div style={{ fontSize: 11, color: G.warning, fontWeight: 700 }}>Traži promociju</div>}
@@ -94,7 +97,7 @@ export default function AdminPage({ events, approveEvent, rejectEvent, deleteEve
                     <td>{e.organizer || "/"}</td>
                     <td>{eventStatusLabel(e.status)}</td>
                     <td>{e.votes.up} / {e.votes.down}</td>
-                    <td>
+                    <td onClick={(ev) => ev.stopPropagation()}>
                       <div style={{ display: "flex", gap: 4 }}>
                         {e.status !== "approved" && <button className="action-btn action-approve" onClick={() => approveEvent(e.id)}>Odobri</button>}
                         {!["rejected", "odbijena"].includes(e.status) && <button className="action-btn action-reject" onClick={() => rejectEvent(e.id)}>Odbij</button>}

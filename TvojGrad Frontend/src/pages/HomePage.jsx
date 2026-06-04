@@ -116,9 +116,9 @@ export default function HomePage({ category, setCategory, city, setCity, search,
   };
 
   const filteredEvents = dbEvents.filter((e) => {
-    const matchesSearch = !search ||
-      e.title?.toLowerCase().includes(search.toLowerCase()) ||
-      e.description?.toLowerCase().includes(search.toLowerCase());
+    const searchText = search.trim().toLowerCase();
+    const eventTitle = String(e.title || e.Naslov || "").toLowerCase();
+    const matchesSearch = !searchText || eventTitle.includes(searchText);
     const matchesCity = !city || city === "Svi gradovi" || e.city === city;
     const matchesCategory = !category || category === "Sve" || e.Tip_dogadjaja === category || e.category === category;
     const eventDate = e.date ? String(e.date).slice(0, 10) : "";
@@ -179,7 +179,7 @@ export default function HomePage({ category, setCategory, city, setCity, search,
               <span className="section-title">{t("promoted")}</span>
             </div>
             <div className="grid">
-              {promotedEvents.slice(0, 3).map((e) => (
+              {promotedEvents.map((e) => (
                 <EventCard
                   key={e.id}
                   event={e}

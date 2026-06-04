@@ -108,6 +108,7 @@ export default function ProfilePage({
   const [dbCets, setDbCets] = useState([]);
   const [dbPrijave, setDbPrijave] = useState([]);
   const [psmStatusSaving, setPsmStatusSaving] = useState({});
+  const [deletingRequestIds, setDeletingRequestIds] = useState({});
   const [activeCetId, setActiveCetId] = useState(null);
   const [chatMessages, setChatMessages] = useState({});
   const [chatInput, setChatInput] = useState("");
@@ -475,6 +476,27 @@ export default function ProfilePage({
     }
   };
 
+  const deleteSentRequest = async (request) => {
+    const requestId = request?.ID || request?.id;
+    if (!requestId) return;
+    setDeletingRequestIds((prev) => ({ ...prev, [requestId]: true }));
+    try {
+      const response = await fetch(`${API_BASE_URL}/zahtevi/${requestId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Zahtjev nije obrisan");
+      setDbRequests((prev) => prev.filter((item) => String(item.ID || item.id) !== String(requestId)));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeletingRequestIds((prev) => {
+        const next = { ...prev };
+        delete next[requestId];
+        return next;
+      });
+    }
+  };
+
   const favoriteList = (backendFavorites.length ? backendFavorites : favEvents).filter(isVisibleFavorite);
   const votedEvents = backendVotedEvents.length ? backendVotedEvents : events.filter((event) => event.myVote);
   const receivedRequests = useMemo(
@@ -603,6 +625,8 @@ export default function ProfilePage({
     const currentStatus = statusLabel(request.status);
     const isPending = currentStatus.toLowerCase() === "na čekanju";
     const isAccepted = currentStatus.toLowerCase().startsWith("prihva");
+    const requestId = request.ID || request.id;
+    const deletingRequest = Boolean(deletingRequestIds[requestId]);
 
     return (
       <div key={request.ID} className="request-card">
@@ -627,6 +651,13 @@ export default function ProfilePage({
           <div className="request-actions">
             <button className="action-btn action-approve" onClick={() => openChatForRequest(request)}>
               Otvori chat
+            </button>
+          </div>
+        )}
+        {mode === "sent" && (
+          <div className="request-actions">
+            <button className="action-btn action-delete" disabled={deletingRequest} onClick={() => deleteSentRequest(request)}>
+              {deletingRequest ? "Brisanje..." : "Obriši"}
             </button>
           </div>
         )}

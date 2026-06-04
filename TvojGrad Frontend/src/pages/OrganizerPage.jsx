@@ -4,7 +4,7 @@ import ImageUpload from "../components/ImageUpload";
 import { formatDisplayDate, formatDisplayTime } from "../api";
 import { translateText } from "../i18n";
 
-export default function OrganizerPage({ user, events, addEvent, updateEvent, deleteEvent, promoteEvent, updateEventImg, cities = CITIES, language = "SRB" }) {
+export default function OrganizerPage({ user, events, addEvent, updateEvent, deleteEvent, promoteEvent, updateEventImg, cities = CITIES, toast, language = "SRB" }) {
   const emojis = ["🎷", "🎤", "🏃", "🎨", "💻", "📚", "💃", "🚀", "🎭", "🎬", "🎸", "🏋️", "🎪", "🎯", "🍕"];
   const emptyForm = {
     title: "",
@@ -33,14 +33,17 @@ export default function OrganizerPage({ user, events, addEvent, updateEvent, del
   };
 
   const submit = async () => {
-    if (!form.title || !form.date || !form.location) return;
+    if (!form.title || !form.date || !form.location) {
+      toast && toast("Greška u unosu podataka");
+      return;
+    }
     if (editingEvent) {
       const saved = await updateEvent(editingEvent.id, { ...editingEvent, ...form, price: Number(form.price) });
       if (saved !== false) cancelEdit();
       return;
     }
-    await addEvent({ ...form, organizer: user.name, price: Number(form.price) });
-    cancelEdit();
+    const saved = await addEvent({ ...form, organizer: user.name, price: Number(form.price) });
+    if (saved !== false) cancelEdit();
   };
 
   const startEdit = (event) => {

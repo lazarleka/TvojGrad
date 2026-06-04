@@ -109,6 +109,7 @@ export default function ProfilePage({
   const [dbCets, setDbCets] = useState([]);
   const [dbPrijave, setDbPrijave] = useState([]);
   const [psmStatusSaving, setPsmStatusSaving] = useState({});
+  const [deletingRequestIds, setDeletingRequestIds] = useState({});
   const [activeCetId, setActiveCetId] = useState(null);
   const [chatMessages, setChatMessages] = useState({});
   const [chatInput, setChatInput] = useState("");
@@ -116,6 +117,18 @@ export default function ProfilePage({
   const [unreadCetIds, setUnreadCetIds] = useState({});
   const [usersById, setUsersById] = useState({});
   const [eventTitlesById, setEventTitlesById] = useState({});
+
+  const appendChatMessage = (cetId, message) => {
+    if (!cetId || !message) return;
+    setChatMessages((prev) => {
+      const current = prev[cetId] || prev[String(cetId)] || [];
+      const messageId = message.ID || message.id;
+      if (messageId && current.some((item) => String(item.ID || item.id) === String(messageId))) {
+        return prev;
+      }
+      return { ...prev, [cetId]: [...current, message] };
+    });
+  };
 
   useEffect(() => {
     if (!uid) return;
@@ -384,10 +397,7 @@ export default function ProfilePage({
             if (senderId && sender) {
               setUsersById((prev) => ({ ...prev, [String(senderId)]: sender }));
             }
-            setChatMessages((prev) => ({
-              ...prev,
-              [cet.ID]: [...(prev[cet.ID] || []), received],
-            }));
+            appendChatMessage(cet.ID, received);
             if (String(senderId) !== String(uid) && String(activeCetId) !== String(cet.ID)) {
               setUnreadCetIds((prev) => ({ ...prev, [cet.ID]: true }));
               void notifyNewChatMessage({ cetId: cet.ID, message: received });
@@ -474,6 +484,27 @@ export default function ProfilePage({
       await loadCets();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const deleteSentRequest = async (request) => {
+    const requestId = request?.ID || request?.id;
+    if (!requestId) return;
+    setDeletingRequestIds((prev) => ({ ...prev, [requestId]: true }));
+    try {
+      const response = await fetch(`${API_BASE_URL}/zahtevi/${requestId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Zahtjev nije obrisan");
+      setDbRequests((prev) => prev.filter((item) => String(item.ID || item.id) !== String(requestId)));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeletingRequestIds((prev) => {
+        const next = { ...prev };
+        delete next[requestId];
+        return next;
+      });
     }
   };
 
@@ -605,6 +636,8 @@ export default function ProfilePage({
     const currentStatus = statusLabel(request.status);
     const isPending = currentStatus.toLowerCase() === "na čekanju";
     const isAccepted = currentStatus.toLowerCase().startsWith("prihva");
+    const requestId = request.ID || request.id;
+    const deletingRequest = Boolean(deletingRequestIds[requestId]);
 
     return (
       <div key={request.ID} className="request-card">
@@ -632,21 +665,40 @@ export default function ProfilePage({
             </button>
           </div>
         )}
+        {mode === "sent" && (
+          <div className="request-actions">
+            <button className="action-btn action-delete" disabled={deletingRequest} onClick={() => deleteSentRequest(request)}>
+              {deletingRequest ? "Brisanje..." : "Obriši"}
+            </button>
+          </div>
+        )}
       </div>
     );
   };
 
-  const sendBackendMessage = () => {
+  const sendBackendMessage = async () => {
     if (!activeCetId || !chatInput.trim()) return;
     const payload = {
       Cet_ID: activeCetId,
       Posiljalac_ID: uid,
       Tekst: chatInput.trim(),
     };
-    if (stompClient?.connected) {
-      stompClient.publish({ destination: "/app/chat.posalji", body: JSON.stringify(payload) });
-    }
     setChatInput("");
+    try {
+      const response = await fetch(`${API_BASE_URL}/poruke-ceta`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error("Poruka nije poslata");
+      const saved = await response.json();
+      appendChatMessage(activeCetId, saved);
+    } catch (err) {
+      console.error(err);
+      if (stompClient?.connected) {
+        stompClient.publish({ destination: "/app/chat.posalji", body: JSON.stringify(payload) });
+      }
+    }
   };
 
   const activeCet = acceptedCets.find((cet) => String(cet.ID) === String(activeCetId));
