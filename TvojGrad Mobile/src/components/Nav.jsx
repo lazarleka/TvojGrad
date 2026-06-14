@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { stopMobileBackgroundNotifications } from "../mobileNotifications";
 
 export default function Nav({ page, navigate, user, setUser, toast, unreadCount, language = "SRB", setLanguage, t = (key) => key }) {
   const korisnikTip = user?.tip || user?.Tip;
@@ -10,6 +11,7 @@ export default function Nav({ page, navigate, user, setUser, toast, unreadCount,
   };
 
   const logout = () => {
+    void stopMobileBackgroundNotifications();
     localStorage.removeItem("userId");
     localStorage.removeItem("user");
     localStorage.removeItem("userName");

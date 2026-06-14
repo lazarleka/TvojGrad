@@ -30,7 +30,9 @@ public class DogadjajRepositories {
                 rs.getString("Tip_dogadjaja"),
                 rs.getString("slika_1"),
                 rs.getString("Emoji"),
-                rs.getObject("Cijena") != null ? rs.getDouble("Cijena") : null // Dodato čitanje cijene (podržava NULL)
+                rs.getObject("Cijena") != null ? rs.getDouble("Cijena") : null,
+                getOptionalDouble(rs, "Latitude", null),
+                getOptionalDouble(rs, "Longitude", null)
         );
     }
 
@@ -42,6 +44,15 @@ public class DogadjajRepositories {
         try {
             String value = rs.getString(columnName);
             return value != null ? value : fallback;
+        } catch (SQLException e) {
+            return fallback;
+        }
+    }
+
+    private Double getOptionalDouble(ResultSet rs, String columnName, Double fallback) {
+        try {
+            Object value = rs.getObject(columnName);
+            return value != null ? rs.getDouble(columnName) : fallback;
         } catch (SQLException e) {
             return fallback;
         }
@@ -60,6 +71,39 @@ public class DogadjajRepositories {
         ps.setInt(1, ID);
         ResultSet rs = ps.executeQuery();
         return rs.next() ? mapRow(rs) : new Dogadjaj();
+    }
+
+    private String normalizedText(String value) {
+        return value == null ? "" : value.trim().toLowerCase();
+    }
+
+    private boolean dogadjajPostojiNaIstomMjestu(Connection conn, Date datum, String vreme, String adresa, Integer excludeID) throws SQLException {
+        String sql = "SELECT 1 FROM objava " +
+                "WHERE Datum=? " +
+                "AND TRIM(COALESCE(Vreme, ''))=? " +
+                "AND LOWER(TRIM(COALESCE(Adresa, '')))=? " +
+                (excludeID != null ? "AND ID<>? " : "") +
+                "LIMIT 1";
+        PreparedStatement ps = conn.prepareStatement(sql);
+        ps.setDate(1, datum);
+        ps.setString(2, normalizedText(vreme));
+        ps.setString(3, normalizedText(adresa));
+        if (excludeID != null) {
+            ps.setInt(4, excludeID);
+        }
+        ResultSet rs = ps.executeQuery();
+        return rs.next();
+    }
+
+    private void provjeriDupliTermin(Connection conn, Dogadjaj dogadjaj, Integer excludeID) throws SQLException {
+        Date datum = sqlDate(dogadjaj.getDatum());
+        String vreme = normalizedText(dogadjaj.getVreme());
+        String adresa = normalizedText(dogadjaj.getAdresa());
+        if (datum == null || vreme.isBlank() || adresa.isBlank()) return;
+
+        if (dogadjajPostojiNaIstomMjestu(conn, datum, vreme, adresa, excludeID)) {
+            throw new IllegalArgumentException("Dogadjaj sa istim datumom, vremenom i mjestom vec postoji.");
+        }
     }
 
     private boolean voteExists(Connection conn, String tableName, int dogadjajID, int korisnikID) throws SQLException {
@@ -149,8 +193,9 @@ public class DogadjajRepositories {
 
         try {
             conn = DBUtil.open();
-            // Dodata kolona Cijena i još jedan upitnik (?) na kraj
-            String sql = "INSERT INTO objava (Naslov, Opis, Datum, Vreme, Upvote, Downvote, Status, Grad, Adresa, Organizator_ID, Administrator_ID, Tip_dogadjaja, slika_1, Emoji, Cijena) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            provjeriDupliTermin(conn, dogadjaj, null);
+            // Dodata kolona Cijena i joÅ¡ jedan upitnik (?) na kraj
+            String sql = "INSERT INTO objava (Naslov, Opis, Datum, Vreme, Upvote, Downvote, Status, Grad, Adresa, Organizator_ID, Administrator_ID, Tip_dogadjaja, slika_1, Emoji, Cijena, Latitude, Longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, dogadjaj.getNaslov());
             ps.setString(2, dogadjaj.getOpis());
@@ -171,6 +216,8 @@ public class DogadjajRepositories {
             ps.setString(13, dogadjaj.getSlika_1());
             ps.setString(14, dogadjaj.getEmoji());
             ps.setObject(15, dogadjaj.getCijena());
+            ps.setObject(16, dogadjaj.getLatitude());
+            ps.setObject(17, dogadjaj.getLongitude());
             ps.executeUpdate();
 
             ResultSet rs = ps.getGeneratedKeys();
@@ -179,6 +226,8 @@ public class DogadjajRepositories {
             }
             dogadjaj.setStatus(status);
             return dogadjaj;
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             System.out.println(e);
             return null;
@@ -195,8 +244,8 @@ public class DogadjajRepositories {
 
         try {
             conn = DBUtil.open();
-            // Dodato ažuriranje kolone Cijena=?
-            String sql = "UPDATE objava SET Naslov=?, Opis=?, Datum=?, Vreme=?, Upvote=?, Downvote=?, Status=?, Grad=?, Adresa=?, Organizator_ID=?, Administrator_ID=?, Tip_dogadjaja=?, slika_1=?, Emoji=?, Cijena=? WHERE ID=?";
+            provjeriDupliTermin(conn, d, ID);
+            String sql = "UPDATE objava SET Naslov=?, Opis=?, Datum=?, Vreme=?, Upvote=?, Downvote=?, Status=?, Grad=?, Adresa=?, Organizator_ID=?, Administrator_ID=?, Tip_dogadjaja=?, slika_1=?, Emoji=?, Cijena=?, Latitude=?, Longitude=? WHERE ID=?";
             PreparedStatement ps = conn.prepareStatement(sql);
             ps.setString(1, d.getNaslov());
             ps.setString(2, d.getOpis());
@@ -213,9 +262,13 @@ public class DogadjajRepositories {
             ps.setString(13, d.getSlika_1());
             ps.setString(14, d.getEmoji());
             ps.setObject(15, d.getCijena());
-            ps.setInt(16, ID);
+            ps.setObject(16, d.getLatitude());
+            ps.setObject(17, d.getLongitude());
+            ps.setInt(18, ID);
             ps.executeUpdate();
             return getDogadjajById(ID);
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (SQLException s) {
             System.out.println(s);
             return null;

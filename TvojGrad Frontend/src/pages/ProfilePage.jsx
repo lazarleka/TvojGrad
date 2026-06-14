@@ -108,6 +108,23 @@ export default function ProfilePage({
   const roleLabels = { visitor: "Posjetilac", organizer: "Organizator", admin: "Administrator" };
   const roleClasses = { visitor: "role-visitor", organizer: "role-organizer", admin: "role-admin" };
   const profileImage = absoluteImgSrc(user?.Profilna || user?.profilna);
+  const profileText = {
+    changePhoto: language === "ENG" ? "Change photo" : "Promijeni sliku",
+    favorites: language === "ENG" ? "Favorites" : "Omiljeni",
+    votes: language === "ENG" ? "Votes" : "Glasovi",
+    conversations: language === "ENG" ? "Conversations" : "Razgovori",
+    messagesRequests: language === "ENG" ? "Messages and requests" : "Poruke i zahtjevi",
+    sentRequests: language === "ENG" ? "Sent requests" : "Poslati zahtjevi",
+    favoriteEvents: language === "ENG" ? "Favorite events" : "Omiljeni događaji",
+    receivedRequests: language === "ENG" ? "RECEIVED REQUESTS FOR \"GO WITH ME\"" : "PRIMLJENI ZAHTJEVI ZA \"POĐI SA MNOM\"",
+    status: language === "ENG" ? "Status" : "Status",
+    accepted: language === "ENG" ? "Accepted" : "Prihvaćen",
+    rejected: language === "ENG" ? "Rejected" : "Odbijen",
+    pending: language === "ENG" ? "Pending" : "Na čekanju",
+    openChat: language === "ENG" ? "Open chat" : "Otvori chat",
+    psmChat: language === "ENG" ? "Go with me chat" : "Pođi sa mnom chat",
+    new: language === "ENG" ? "new" : "nova",
+  };
 
   const [backendFavorites, setBackendFavorites] = useState([]);
   const [backendVotedEvents, setBackendVotedEvents] = useState([]);
@@ -119,6 +136,7 @@ export default function ProfilePage({
   const [activeCetId, setActiveCetId] = useState(null);
   const [chatMessages, setChatMessages] = useState({});
   const [chatInput, setChatInput] = useState("");
+  const [chatSearch, setChatSearch] = useState("");
   const [stompClient, setStompClient] = useState(null);
   const [unreadCetIds, setUnreadCetIds] = useState({});
   const [usersById, setUsersById] = useState({});
@@ -561,11 +579,11 @@ export default function ProfilePage({
   const myPsmPrijave = newestFirst(dbPrijave.filter((prijava) => String(getUserId(prijava.Korisnik || prijava.korisnik)) === String(uid)));
 
   const tabs = [
-    { id: "favorites", label: "❤️ Omiljeni", count: favoriteList.length },
-    { id: "inbox", label: "💬 Poruke i zahtjevi", count: totalUnread, badge: totalUnread > 0 },
-    { id: "sent-requests", label: "📨 Poslati zahtjevi", count: sentRequests.length },
+    { id: "favorites", label: `❤️ ${profileText.favorites}`, count: favoriteList.length },
+    { id: "inbox", label: `💬 ${profileText.messagesRequests}`, count: totalUnread, badge: totalUnread > 0 },
+    { id: "sent-requests", label: `📨 ${profileText.sentRequests}`, count: sentRequests.length },
     { id: "psm-applications", label: `🚶 ${t("psmApplications")}`, count: myPsmPrijave.length },
-    { id: "votes", label: "👍 Glasovi", count: votedEvents.length },
+    { id: "votes", label: `👍 ${profileText.votes}`, count: votedEvents.length },
     ...(role === "organizer" ? [{ id: "organizer", label: "➕ Moji događaji" }] : []),
     ...(role === "admin" ? [{ id: "admin-link", label: "⚙️ Admin panel" }] : []),
   ];
@@ -670,6 +688,11 @@ export default function ProfilePage({
     const displayName = displayUser ? userName(displayUser) : fallbackName;
     const displayEmail = displayUser?.Email || displayUser?.email || "";
     const currentStatus = statusLabel(request.status);
+    const translatedStatus = currentStatus.toLowerCase().startsWith("prihva")
+      ? profileText.accepted
+      : currentStatus.toLowerCase().startsWith("odbij")
+        ? profileText.rejected
+        : profileText.pending;
     const isPending = isPendingRequestStatus(request.status);
     const isAccepted = currentStatus.toLowerCase().startsWith("prihva");
     const requestId = request.ID || request.id;
@@ -681,7 +704,7 @@ export default function ProfilePage({
         <div className="request-info">
           <div className="request-name">{displayName}</div>
           <div className="request-meta">
-            {displayEmail ? `${displayEmail} · ` : ""}Status: {currentStatus}
+            {displayEmail ? `${displayEmail} · ` : ""}{profileText.status}: {translatedStatus}
           </div>
         </div>
         {mode === "received" && isPending && (
@@ -697,7 +720,7 @@ export default function ProfilePage({
         {isAccepted && (
           <div className="request-actions">
             <button className="action-btn action-approve" onClick={() => openChatForRequest(request)}>
-              Otvori chat
+              {profileText.openChat}
             </button>
           </div>
         )}
@@ -775,6 +798,14 @@ export default function ProfilePage({
   };
   const activeOtherUser = activeCet ? getOtherUser(activeCet) : null;
   const activeOtherName = activeOtherUser ? userName(activeOtherUser) : "Chat";
+  const normalizedChatSearch = chatSearch.trim().toLowerCase();
+  const visibleAcceptedCets = acceptedCets.filter((cet) => {
+    if (!normalizedChatSearch) return true;
+    const otherUser = getOtherUser(cet);
+    const otherName = otherUser ? userName(otherUser) : "Korisnik";
+    const otherEmail = otherUser?.Email || otherUser?.email || "";
+    return `${otherName} ${otherEmail}`.toLowerCase().includes(normalizedChatSearch);
+  });
 
   return (
     <div className="main">
@@ -785,16 +816,16 @@ export default function ProfilePage({
               {profileImage ? <img src={profileImage} alt={name} /> : initialsFor(name)}
             </div>
             <label className="profile-photo-btn">
-              Promijeni sliku
+              {profileText.changePhoto}
               <input type="file" accept="image/*" onChange={(ev) => handleProfileImage(ev.target.files?.[0])} />
             </label>
             <div className="profile-name">{name}</div>
             <div className="profile-email">{email}</div>
             <span className={`role-badge ${roleClasses[role]}`}>{roleLabels[role]}</span>
             <div className="profile-stats">
-              <div className="profile-stat"><div className="profile-stat-val">{favoriteList.length}</div><div className="profile-stat-label">Omiljeni</div></div>
-              <div className="profile-stat"><div className="profile-stat-val">{votedEvents.length}</div><div className="profile-stat-label">Glasovi</div></div>
-              <div className="profile-stat"><div className="profile-stat-val">{conversationCount}</div><div className="profile-stat-label">Razgovori</div></div>
+              <div className="profile-stat"><div className="profile-stat-val">{favoriteList.length}</div><div className="profile-stat-label">{profileText.favorites}</div></div>
+              <div className="profile-stat"><div className="profile-stat-val">{votedEvents.length}</div><div className="profile-stat-label">{profileText.votes}</div></div>
+              <div className="profile-stat"><div className="profile-stat-val">{conversationCount}</div><div className="profile-stat-label">{profileText.conversations}</div></div>
             </div>
             <div className="profile-nav">
               {tabs.map((tab) => (
@@ -810,7 +841,7 @@ export default function ProfilePage({
         <div>
           {profileTab === "favorites" && (
             <div className="form-card">
-              <h3>❤️ Omiljeni događaji ({favoriteList.length})</h3>
+              <h3>❤️ {profileText.favoriteEvents} ({favoriteList.length})</h3>
               {renderEventList(
                 favoriteList,
                 "Niste sačuvali nijedan omiljeni događaj.",
@@ -826,11 +857,11 @@ export default function ProfilePage({
 
           {profileTab === "inbox" && (
             <div className="form-card">
-              <h3>💬 Poruke i zahtjevi {totalUnread > 0 && <span className="nav-badge" style={{ fontSize: 11, padding: "2px 7px", width: "auto", height: "auto", borderRadius: 10 }}>{totalUnread} nova</span>}</h3>
+              <h3>💬 {profileText.messagesRequests} {totalUnread > 0 && <span className="nav-badge" style={{ fontSize: 11, padding: "2px 7px", width: "auto", height: "auto", borderRadius: 10 }}>{totalUnread} {profileText.new}</span>}</h3>
 
               {(receivedRequests.length > 0 || incomingRequests.length > 0) && (
                 <div className="request-list request-list-scroll">
-                  <div className="request-title">Primljeni zahtjevi za "Pođi sa mnom"</div>
+                  <div className="request-title">{profileText.receivedRequests}</div>
                   {receivedRequests.map((request) => renderRequest(request, "received"))}
                   {incomingRequests.map((req) => (
                     <div key={req.id} className="request-card">
@@ -852,38 +883,49 @@ export default function ProfilePage({
                 <div className="inbox-layout">
                   <div className="inbox-sidebar">
                     <div style={{ fontSize: 13, fontWeight: 600, color: G.muted, marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      Razgovori
+                      {profileText.conversations}
                     </div>
-                    {acceptedCets.map((cet) => {
-                      const otherUser = getOtherUser(cet);
-                      const otherName = otherUser ? userName(otherUser) : "Korisnik";
-                      const otherEmail = otherUser?.Email || otherUser?.email || "";
-                      const isUnread = Boolean(unreadCetIds[cet.ID] || externalUnreadCetIds[cet.ID]);
-                      return (
-                        <div
-                          key={cet.ID}
-                          className={`inbox-thread${String(activeCetId) === String(cet.ID) ? " active-thread" : ""}${isUnread ? " unread-thread" : ""}`}
-                          onClick={() => {
-                            setActiveCetId(cet.ID);
-                            setUnreadCetIds((prev) => {
-                              const next = { ...prev };
-                              delete next[cet.ID];
-                              return next;
-                            });
-                            if (onMarkChatRead) {
-                              onMarkChatRead(cet.ID, latestMessageIdForCet(cet.ID));
-                            }
-                          }}
-                        >
-                          {avatarFor(otherUser, otherName)}
-                          <div className="inbox-thread-info">
-                            <div className="inbox-thread-name">{otherName}</div>
-                            <div className="inbox-thread-preview">{isUnread ? "Nova poruka" : (otherEmail || "Chat je aktivan")}</div>
+                    <input
+                      className="inbox-search"
+                      value={chatSearch}
+                      onChange={(ev) => setChatSearch(ev.target.value)}
+                      placeholder="Pretrazi osobe"
+                    />
+                    <div className="inbox-thread-list">
+                      {visibleAcceptedCets.map((cet) => {
+                        const otherUser = getOtherUser(cet);
+                        const otherName = otherUser ? userName(otherUser) : "Korisnik";
+                        const otherEmail = otherUser?.Email || otherUser?.email || "";
+                        const isUnread = Boolean(unreadCetIds[cet.ID] || externalUnreadCetIds[cet.ID]);
+                        return (
+                          <div
+                            key={cet.ID}
+                            className={`inbox-thread${String(activeCetId) === String(cet.ID) ? " active-thread" : ""}${isUnread ? " unread-thread" : ""}`}
+                            onClick={() => {
+                              setActiveCetId(cet.ID);
+                              setUnreadCetIds((prev) => {
+                                const next = { ...prev };
+                                delete next[cet.ID];
+                                return next;
+                              });
+                              if (onMarkChatRead) {
+                                onMarkChatRead(cet.ID, latestMessageIdForCet(cet.ID));
+                              }
+                            }}
+                          >
+                            {avatarFor(otherUser, otherName)}
+                            <div className="inbox-thread-info">
+                              <div className="inbox-thread-name">{otherName}</div>
+                              <div className="inbox-thread-preview">{isUnread ? "Nova poruka" : (otherEmail || "Chat je aktivan")}</div>
+                            </div>
+                            {isUnread && <div className="inbox-unread" />}
                           </div>
-                          {isUnread && <div className="inbox-unread" />}
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                      {visibleAcceptedCets.length === 0 && (
+                        <div className="inbox-empty-list">Nema razgovora za ovu pretragu.</div>
+                      )}
+                    </div>
                   </div>
                   <div className="inbox-main">
                     {activeCet ? (
@@ -892,7 +934,7 @@ export default function ProfilePage({
                           {avatarFor(activeOtherUser, activeOtherName, "avatar-lg")}
                           <div>
                             <div style={{ fontWeight: 600, fontSize: 15, color: G.greenDark }}>{activeOtherName}</div>
-                            <div style={{ fontSize: 12, color: G.muted }}>Pođi sa mnom chat</div>
+                            <div style={{ fontSize: 12, color: G.muted }}>{profileText.psmChat}</div>
                           </div>
                         </div>
                         <div className="inbox-msgs">
@@ -931,7 +973,7 @@ export default function ProfilePage({
 
           {profileTab === "sent-requests" && (
             <div className="form-card">
-              <h3>📨 Poslati zahtjevi ({sentRequests.length})</h3>
+              <h3>📨 {profileText.sentRequests} ({sentRequests.length})</h3>
               {sentRequests.length > 0 ? (
                 <div className="request-list" style={{ marginBottom: 0 }}>
                   {sentRequests.map((request) => renderRequest(request, "sent"))}
@@ -985,11 +1027,13 @@ export default function ProfilePage({
 
           {profileTab === "votes" && (
             <div className="form-card">
-              <h3>👍 Glasali ste za ({votedEvents.length})</h3>
+              <h3>👍 {language === "ENG" ? "Votes" : "Glasali ste za"} ({votedEvents.length})</h3>
               {renderEventList(
                 votedEvents,
                 "Niste glasali ni za jedan događaj.",
-                (event) => event.myVote === "up" ? "👍 Sviđa mi se" : "👎 Ne sviđa mi se"
+                (event) => event.myVote === "up"
+                  ? `👍 ${language === "ENG" ? "You like this" : "Sviđa mi se"}`
+                  : `👎 ${language === "ENG" ? "You dislike this" : "Ne sviđa mi se"}`
               )}
             </div>
           )}

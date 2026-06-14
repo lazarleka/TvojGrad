@@ -1,92 +1,97 @@
-import { useEffect, useRef, useState } from 'react';
-import { G } from '../constants';
+import { useEffect, useRef, useState } from "react";
+import { G } from "../constants";
 
 export default function InboxPanel({ conversations = {}, activeThread, setActiveThread, sendMsg, markRead, user }) {
   const [input, setInput] = useState("");
+  const [search, setSearch] = useState("");
   const msgsRef = useRef();
 
-  // Razvojni trik: Ispisujemo u konzolu šta je tačno stiglo u InboxPanel
-  // Otvori F12 u browseru i pogledaj Console tab ako i dalje imaš problema!
-  console.log("InboxPanel podaci:", { conversations, activeThread, user });
-
-  // Osiguravamo da su threads uvijek niz, čak i ako conversations stigne kao null/undefined
   const threads = conversations ? Object.entries(conversations) : [];
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredThreads = threads.filter(([, conv]) => {
+    if (!normalizedSearch) return true;
+    return `${conv?.with?.name || ""} ${conv?.with?.email || ""} ${conv?.with?.Email || ""}`
+      .toLowerCase()
+      .includes(normalizedSearch);
+  });
 
-  // Automatsko skrolovanje na dno kada se promeni čet ili stigne nova poruka
-  useEffect(() => { 
+  useEffect(() => {
     if (msgsRef.current) {
-      msgsRef.current.scrollTop = msgsRef.current.scrollHeight; 
+      msgsRef.current.scrollTop = msgsRef.current.scrollHeight;
     }
   }, [activeThread, conversations]);
 
   const handleSend = () => {
     if (!activeThread || !input.trim()) return;
-    
     sendMsg(activeThread, input.trim());
     setInput("");
   };
 
-  // Bezbjedno izvlačenje aktivnog četa
   const active = activeThread && conversations ? conversations[activeThread] : null;
 
   if (threads.length === 0) return (
     <div className="empty">
       <span className="empty-icon">💬</span>Nemate ni jedan razgovor.<br />
-      <span style={{fontSize:13}}>Koristite "Pođi sa mnom" na stranici događaja da povežete sa drugima.</span>
+      <span style={{ fontSize: 13 }}>Koristite "Podji sa mnom" na stranici dogadjaja da se povezete sa drugima.</span>
     </div>
   );
 
   return (
     <div className="inbox-layout">
-      {/* LIJEVA STRANA: Lista svih razgovora */}
       <div className="inbox-sidebar">
-        <div style={{fontSize:13,fontWeight:600,color:G.muted,marginBottom:"0.75rem",textTransform:"uppercase",letterSpacing:"0.5px"}}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: G.muted, marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
           Razgovori
         </div>
-        {threads.map(([tid, conv]) => (
-          <div key={tid} className={`inbox-thread${activeThread===tid?" active-thread":""}`}
-            onClick={() => { setActiveThread(tid); if (markRead) markRead(tid); }}>
-            <div className="avatar">{conv?.with?.initials||"?"}</div>
+        <input
+          className="inbox-search"
+          value={search}
+          onChange={(ev) => setSearch(ev.target.value)}
+          placeholder="Pretrazi osobe"
+        />
+        {filteredThreads.map(([tid, conv]) => (
+          <div
+            key={tid}
+            className={`inbox-thread${activeThread === tid ? " active-thread" : ""}`}
+            onClick={() => {
+              setActiveThread(tid);
+              if (markRead) markRead(tid);
+            }}
+          >
+            <div className="avatar">{conv?.with?.initials || "?"}</div>
             <div className="inbox-thread-info">
               <div className="inbox-thread-name">{conv?.with?.name || "Nepoznat korisnik"}</div>
-              <div className="inbox-thread-preview">{conv?.msgs?.[conv.msgs.length-1]?.text || ""}</div>
-              <div className="inbox-thread-event">📅 {conv?.eventTitle || "Događaj"}</div>
+              <div className="inbox-thread-preview">{conv?.msgs?.[conv.msgs.length - 1]?.text || ""}</div>
+              <div className="inbox-thread-event">📅 {conv?.eventTitle || "Dogadjaj"}</div>
             </div>
             {conv?.unread && <div className="inbox-unread" />}
           </div>
         ))}
+        {filteredThreads.length === 0 && (
+          <div className="inbox-empty-list">Nema razgovora za ovu pretragu.</div>
+        )}
       </div>
 
-      {/* DESNA STRANA: Aktivni prozor za četovanje */}
       <div className="inbox-main">
         {active ? (
           <>
-            {/* Zaglavlje aktivnog četa */}
             <div className="inbox-main-header">
               <div className="avatar avatar-lg">{active.with?.initials || "?"}</div>
               <div>
-                <div style={{fontWeight:600,fontSize:15,color:G.greenDark}}>{active.with?.name}</div>
-                <div style={{fontSize:12,color:G.muted}}>📅 {active.eventTitle}</div>
+                <div style={{ fontWeight: 600, fontSize: 15, color: G.greenDark }}>{active.with?.name}</div>
+                <div style={{ fontSize: 12, color: G.muted }}>📅 {active.eventTitle}</div>
               </div>
             </div>
 
-            {/* Prikaz poruka */}
             <div className="inbox-msgs" ref={msgsRef}>
-              {(active.msgs||[]).map((m, i) => {
-                // Pokrivamo sve varijante ID-ja (velika/mala slova sa backenda i iz localStorage)
-                const trenutniUserId = user?.id || user?.ID;
-                const isMe = m.fromId === trenutniUserId || m.FromId === trenutniUserId;
+              {(active.msgs || []).map((m, i) => {
+                const currentUserId = user?.id || user?.ID;
+                const isMe = m.fromId === currentUserId || m.FromId === currentUserId;
 
                 return (
                   <div key={i} className={`chat-msg${isMe ? " me" : ""}`}>
                     {!isMe && <div className="chat-msg-sender">{m.from || m.From}</div>}
                     {m.text || m.Text}
-                    <div style={{
-                      fontSize: 10,
-                      opacity: 0.6,
-                      marginTop: 3,
-                      textAlign: isMe ? "right" : "left"
-                    }}>
+                    <div style={{ fontSize: 10, opacity: 0.6, marginTop: 3, textAlign: isMe ? "right" : "left" }}>
                       {m.time || m.Time}
                     </div>
                   </div>
@@ -94,15 +99,14 @@ export default function InboxPanel({ conversations = {}, activeThread, setActive
               })}
             </div>
 
-            {/* Unos nove poruke */}
             <div className="inbox-input">
-              <input 
-                value={input} 
-                onChange={e => setInput(e.target.value)} 
-                onKeyDown={e => e.key === "Enter" && handleSend()} 
-                placeholder="Napiši poruku..." 
+              <input
+                value={input}
+                onChange={(ev) => setInput(ev.target.value)}
+                onKeyDown={(ev) => ev.key === "Enter" && handleSend()}
+                placeholder="Napisi poruku..."
               />
-              <button className="chat-send" onClick={handleSend}>➤ Pošalji</button>
+              <button className="chat-send" onClick={handleSend}>Posalji</button>
             </div>
           </>
         ) : (

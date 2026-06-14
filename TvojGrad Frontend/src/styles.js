@@ -53,6 +53,11 @@ export const css = `
   .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem}
   .section-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:${G.greenDark}}
   .section-sub{font-size:13px;color:${G.muted}}
+  .event-list-tabs{display:flex;gap:8px;margin:-0.4rem 0 1.25rem;border-bottom:1px solid ${G.border};overflow-x:auto}
+  .event-list-tab{border:none;border-bottom:2px solid transparent;background:transparent;color:${G.muted};font-family:'DM Sans',sans-serif;font-size:14px;font-weight:800;padding:10px 4px;cursor:pointer;white-space:nowrap}
+  .event-list-tab.active{color:${G.greenDark};border-bottom-color:${G.green}}
+  .event-list-tab span{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;margin-left:6px;border-radius:999px;background:${G.paper};color:${G.greenDark};font-size:12px}
+  .event-list-tab.active span{background:${G.greenLight};color:${G.greenDark}}
   .divider{height:1px;background:${G.border};margin:2rem 0}
 
   /* EVENT CARDS */
@@ -153,10 +158,14 @@ export const css = `
   .inbox-thread-preview{font-size:12px;color:${G.muted};white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .inbox-thread-event{font-size:11px;color:${G.green};font-weight:500;margin-top:2px}
   .inbox-unread{width:8px;height:8px;border-radius:50%;background:${G.green};flex-shrink:0}
+  .inbox-thread-list{overflow:visible}
   .inbox-layout{display:grid;grid-template-columns:320px 1fr;gap:1.25rem;height:500px}
   .inbox-sidebar{border:1px solid ${G.border};border-radius:16px;overflow-y:auto;padding:1rem;background:#fff}
   .inbox-main{border:1px solid ${G.border};border-radius:16px;overflow:hidden;display:flex;flex-direction:column;background:#fff}
   .inbox-main-header{padding:1rem 1.25rem;border-bottom:1px solid ${G.border};background:${G.greenLight};display:flex;align-items:center;gap:12px}
+  .inbox-search{width:100%;height:38px;border:1px solid ${G.border};border-radius:10px;padding:0 12px;margin-bottom:0.75rem;font-family:'DM Sans',sans-serif;font-size:13px;outline:none;color:${G.ink};background:${G.paper}}
+  .inbox-search:focus{border-color:${G.green};background:#fff;box-shadow:0 0 0 3px rgba(29,158,117,0.1)}
+  .inbox-empty-list{border:1px dashed ${G.border};border-radius:12px;padding:0.9rem;text-align:center;color:${G.muted};font-size:13px;background:${G.paper}}
   .inbox-msgs{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:8px;background:${G.paper}}
   .inbox-input{display:flex;gap:8px;padding:1rem;border-top:1px solid ${G.border};background:#fff}
   .inbox-input input{flex:1;border:1px solid ${G.border};border-radius:10px;padding:9px 14px;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;color:${G.ink}}
@@ -253,6 +262,7 @@ export const css = `
   .action-reject:hover{background:#fdf0f0}
   .action-delete{border-color:${G.muted};color:${G.muted}}
   .action-delete:hover{background:${G.paper}}
+  .admin-event-tabs{margin:0.85rem 0 0}
   .tabs{display:flex;border-bottom:1px solid ${G.border};margin-bottom:1.5rem}
   .tab{padding:10px 20px;font-size:14px;font-weight:500;cursor:pointer;color:${G.muted};border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;font-family:'DM Sans',sans-serif;transition:all 0.15s}
   .tab.active{color:${G.green};border-bottom-color:${G.green}}
@@ -314,7 +324,17 @@ export const css = `
   .event-map-name{display:block;font-size:14px;font-weight:700;color:${G.ink};line-height:1.35}
   .event-map-address{display:block;font-size:12px;color:${G.muted};margin-top:4px;line-height:1.4}
   .event-map-city{display:inline-flex;margin-top:8px;border-radius:999px;background:#fff;color:${G.greenDark};font-size:11px;font-weight:700;padding:3px 8px}
-
+  .event-directions-panel{margin-top:1rem;border:1px solid ${G.border};border-radius:14px;background:#fff;padding:1rem}
+  .event-directions-title{font-size:14px;font-weight:800;color:${G.ink};margin-bottom:0.75rem}
+  .event-directions-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:0.65rem;align-items:center}
+  .event-directions-input{height:42px;border:1px solid ${G.border};border-radius:10px;padding:0 12px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;background:#fff;color:${G.ink};min-width:0}
+  .event-directions-input:focus{border-color:${G.green};box-shadow:0 0 0 3px rgba(29,158,117,0.12)}
+  .event-directions-primary,.event-directions-secondary{height:42px;border-radius:10px;padding:0 14px;font-family:'DM Sans',sans-serif;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap}
+  .event-directions-primary{border:1px solid ${G.green};background:${G.green};color:#fff}
+  .event-directions-secondary{border:1px solid ${G.border};background:${G.paper};color:${G.greenDark}}
+  .event-directions-primary:disabled,.event-directions-secondary:disabled{opacity:0.55;cursor:not-allowed}
+  .event-directions-destination{font-size:12px;color:${G.muted};margin-top:0.65rem;line-height:1.4}
+  .event-directions-error{font-size:12px;color:#b42318;margin-top:0.55rem;font-weight:700}
   @media (max-width: 820px){
     .nav{height:auto;min-height:60px;padding:0.7rem 1rem;align-items:stretch;gap:0;flex-direction:column}
     .nav-top{width:100%}
@@ -333,6 +353,8 @@ export const css = `
     .event-map-layout{grid-template-columns:1fr}
     .event-map-frame{min-height:340px}
     .event-map-list{max-height:260px}
+    .event-directions-row{grid-template-columns:1fr}
+    .event-directions-primary,.event-directions-secondary{width:100%}
     .main{padding:1rem}
     .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:0.75rem}
     .card{border-radius:12px}
@@ -350,6 +372,7 @@ export const css = `
     .profile-nav-btn{justify-content:center;text-align:center;padding:10px 8px;font-size:13px}
     .inbox-layout{height:auto;gap:0.9rem}
     .inbox-sidebar{max-height:none;overflow:visible;border-radius:14px}
+    .inbox-thread-list{max-height:264px;overflow-y:auto;padding-right:4px;scrollbar-gutter:stable}
     .inbox-thread{margin-bottom:8px}
     .inbox-main{min-height:480px;border-radius:14px}
     .inbox-msgs{min-height:300px;max-height:420px}

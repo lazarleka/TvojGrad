@@ -32,6 +32,10 @@ public class DBUtil {
             executeQuietly(conn, "ALTER TABLE korisnik MODIFY Profilna TEXT NULL");
             addColumnIfMissing(conn, "objava", "Cijena",
                     "ALTER TABLE objava ADD COLUMN Cijena DECIMAL(10,2) NULL");
+            addColumnIfMissing(conn, "objava", "Latitude",
+                    "ALTER TABLE objava ADD COLUMN Latitude DECIMAL(10,7) NULL");
+            addColumnIfMissing(conn, "objava", "Longitude",
+                    "ALTER TABLE objava ADD COLUMN Longitude DECIMAL(10,7) NULL");
             alignObjavaTipForeignKey(conn);
             executeQuietly(conn, "ALTER TABLE objava MODIFY COLUMN slika_1 TEXT NULL");
             executeQuietly(conn, "ALTER TABLE objava MODIFY COLUMN Status ENUM('na_cekanju','odobrena','odbijena','arhivirana','promovisana','na_cekanju_promovisana') DEFAULT 'na_cekanju'");

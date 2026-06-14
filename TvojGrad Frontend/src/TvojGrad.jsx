@@ -48,6 +48,25 @@ const PAGE_PATHS = {
 
 const getEventId = (event) => event?.id ?? event?.ID;
 const normalizeEventTitle = (title) => String(title || "").trim().toLowerCase();
+const normalizeDateKey = (value) => {
+  if (!value) return "";
+  const raw = String(value).trim();
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const local = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (local) return `${local[3]}-${local[2]}-${local[1]}`;
+  return raw.slice(0, 10);
+};
+const normalizeTimeKey = (value) => {
+  const match = String(value || "").trim().match(/(\d{1,2})[:/](\d{2})/);
+  return match ? `${String(match[1]).padStart(2, "0")}:${match[2]}` : String(value || "").trim();
+};
+const normalizePlaceKey = (value) => String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+const eventSlotKey = (event) => [
+  normalizeDateKey(event?.date || event?.Datum),
+  normalizeTimeKey(event?.time || event?.Vreme),
+  normalizePlaceKey(event?.location || event?.address || event?.Adresa || event?.Lokacija),
+].join("|");
 const isPublicEvent = (event) =>
   event?.status === "approved" ||
   event?.statusRaw === "odobrena" ||
@@ -171,8 +190,14 @@ export default function TvojGrad() {
       return;
     }
 
+    setRouteEvent(null);
+    const requestedEventId = route.eventId;
     fetchEventById(route.eventId)
-      .then(setRouteEvent)
+      .then((event) => {
+        if (String(getEventId(event)) === String(requestedEventId)) {
+          setRouteEvent(event);
+        }
+      })
       .catch(() => setRouteEvent(null));
   }, [route.page, route.eventId]);
 
@@ -327,7 +352,7 @@ export default function TvojGrad() {
     };
 
     loadGlobalChatNotifications();
-    chatPollId = setInterval(loadGlobalChatNotifications, 4000);
+    chatPollId = setInterval(loadGlobalChatNotifications, 6000);
 
     return () => {
       cancelled = true;
@@ -469,9 +494,11 @@ export default function TvojGrad() {
       toast("Greška u unosu podataka");
       return false;
     }
-    const titleExists = events.some((event) => normalizeEventTitle(event.title || event.Naslov) === newTitle);
-    if (titleExists) {
-      toast("Događaj sa ovim imenom već postoji");
+    const newSlotKey = eventSlotKey(newEv);
+    const currentEvents = await fetchAdminEvents().catch(() => events);
+    const slotExists = currentEvents.some((event) => eventSlotKey(event) === newSlotKey);
+    if (slotExists) {
+      toast("Dogadjaj sa istim datumom, vremenom i mjestom vec postoji");
       return false;
     }
 
@@ -485,7 +512,7 @@ export default function TvojGrad() {
       return true;
     } catch (err) {
       console.error(err);
-      toast("Greška u unosu podataka");
+      toast(err.message || "Greska u unosu podataka");
       return false;
     }
   };
@@ -505,7 +532,7 @@ export default function TvojGrad() {
       return true;
     } catch (err) {
       console.error(err);
-      toast("Događaj nije sačuvan");
+      toast(err.message || "Dogadjaj nije sacuvan");
       return false;
     }
   };
@@ -698,7 +725,7 @@ export default function TvojGrad() {
   const favEvents = eventsForCurrentUser.filter((e) => e.fav && isPublicEvent(e));
   const detailEvent =
     page === "detail"
-      ? routeEvent ||
+      ? (String(getEventId(routeEvent)) === String(route.eventId) ? routeEvent : null) ||
         eventsForCurrentUser.find((e) => String(getEventId(e)) === String(route.eventId)) ||
         (String(getEventId(selectedEvent)) === String(route.eventId) ? selectedEvent : null)
       : null;

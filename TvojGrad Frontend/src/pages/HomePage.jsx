@@ -24,15 +24,21 @@ export default function HomePage({ category, setCategory, city, setCity, search,
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState([]);
   const [myVotes, setMyVotes] = useState(loadVotes);
+  const [eventTab, setEventTab] = useState("active");
 
   useEffect(() => {
     loadEvents();
   }, []);
 
   useEffect(() => {
-    if (getUserId(currentUser)) {
-      fetchFavorites();
+    if (!getUserId(currentUser)) {
+      setFavorites([]);
+      setMyVotes({});
+      localStorage.removeItem("myVotes");
+      return;
     }
+
+    fetchFavorites();
   }, [currentUser]);
 
   const loadEvents = async () => {
@@ -48,6 +54,9 @@ export default function HomePage({ category, setCategory, city, setCity, search,
         const nextVotes = Object.fromEntries(voteEntries.filter(([, vote]) => vote));
         setMyVotes(nextVotes);
         saveVotes(nextVotes);
+      } else {
+        setMyVotes({});
+        localStorage.removeItem("myVotes");
       }
     } catch (error) {
       console.error("Greška pri učitavanju događaja:", error);
@@ -115,6 +124,14 @@ export default function HomePage({ category, setCategory, city, setCity, search,
     }
   };
 
+  const eventTimeValue = (event) => {
+    const datePart = event?.date ? String(event.date).slice(0, 10) : "";
+    const timePart = event?.time ? String(event.time).slice(0, 5) : "00:00";
+    const value = datePart ? new Date(`${datePart}T${timePart || "00:00"}`).getTime() : Number.NaN;
+    return Number.isFinite(value) ? value : 0;
+  };
+
+  const nowTime = Date.now();
   const filteredEvents = dbEvents.filter((e) => {
     const searchText = search.trim().toLowerCase();
     const eventTitle = String(e.title || e.Naslov || "").toLowerCase();
@@ -126,7 +143,19 @@ export default function HomePage({ category, setCategory, city, setCity, search,
     return matchesSearch && matchesCity && matchesCategory && matchesDate;
   });
 
-  const promotedEvents = dbEvents.filter((e) => e.promoted);
+  const activeEvents = filteredEvents
+    .filter((event) => eventTimeValue(event) >= nowTime)
+    .sort((a, b) => eventTimeValue(a) - eventTimeValue(b));
+
+  const pastEvents = filteredEvents
+    .filter((event) => eventTimeValue(event) < nowTime)
+    .sort((a, b) => eventTimeValue(b) - eventTimeValue(a));
+
+  const visibleEvents = eventTab === "past" ? pastEvents : activeEvents;
+
+  const promotedEvents = dbEvents
+    .filter((e) => e.promoted && eventTimeValue(e) >= nowTime)
+    .sort((a, b) => eventTimeValue(a) - eventTimeValue(b));
 
   if (loading) {
     return (
@@ -200,11 +229,27 @@ export default function HomePage({ category, setCategory, city, setCity, search,
 
         <div className="section-header">
           <span className="section-title">{t("allEvents")}</span>
-          <span className="section-sub">{filteredEvents.length} {t("eventCount")}</span>
+          <span className="section-sub">{visibleEvents.length} {t("eventCount")}</span>
         </div>
-        {filteredEvents.length > 0 ? (
+        <div className="event-list-tabs">
+          <button
+            className={`event-list-tab${eventTab === "active" ? " active" : ""}`}
+            type="button"
+            onClick={() => setEventTab("active")}
+          >
+            Aktivni događaji <span>{activeEvents.length}</span>
+          </button>
+          <button
+            className={`event-list-tab${eventTab === "past" ? " active" : ""}`}
+            type="button"
+            onClick={() => setEventTab("past")}
+          >
+            Prošli događaji <span>{pastEvents.length}</span>
+          </button>
+        </div>
+        {visibleEvents.length > 0 ? (
           <div className="grid">
-            {filteredEvents.map((e) => (
+            {visibleEvents.map((e) => (
               <EventCard
                 key={e.id}
                 event={e}
@@ -225,7 +270,7 @@ export default function HomePage({ category, setCategory, city, setCity, search,
             {t("noEvents")}
           </div>
         )}
-        <EventMap events={filteredEvents} title={t("eventsOnMap")} language={language} />
+        <EventMap events={visibleEvents} title={t("eventsOnMap")} language={language} />
       </div>
     </>
   );

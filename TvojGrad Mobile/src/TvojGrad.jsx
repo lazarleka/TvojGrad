@@ -26,6 +26,7 @@ import {
   fetchOrganizerEvents,
   getStoredUser,
   getUserId,
+  getApiBaseUrl,
   rejectAdminRequest,
   rejectEventRequest,
   removeOrganizerRole,
@@ -35,7 +36,16 @@ import {
   uploadEventImage,
 } from "./api";
 import { Client } from "@stomp/stompjs";
-import { initMobileNotifications, notifyNewChatMessage, notifyPsmRequestRejected } from "./mobileNotifications";
+import {
+  initMobileNotifications,
+  notifyNewChatMessage,
+  notifyPsmRequestAccepted,
+  notifyPsmRequestReceived,
+  notifyPsmRequestRejected,
+  setMobileNotificationOpenHandler,
+  startMobileBackgroundNotifications,
+  stopMobileBackgroundNotifications,
+} from "./mobileNotifications";
 
 const PAGE_PATHS = {
   home: "/",
@@ -49,6 +59,25 @@ const PAGE_PATHS = {
 
 const getEventId = (event) => event?.id ?? event?.ID;
 const normalizeEventTitle = (title) => String(title || "").trim().toLowerCase();
+const normalizeDateKey = (value) => {
+  if (!value) return "";
+  const raw = String(value).trim();
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const local = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (local) return `${local[3]}-${local[2]}-${local[1]}`;
+  return raw.slice(0, 10);
+};
+const normalizeTimeKey = (value) => {
+  const match = String(value || "").trim().match(/(\d{1,2})[:/](\d{2})/);
+  return match ? `${String(match[1]).padStart(2, "0")}:${match[2]}` : String(value || "").trim();
+};
+const normalizePlaceKey = (value) => String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+const eventSlotKey = (event) => [
+  normalizeDateKey(event?.date || event?.Datum),
+  normalizeTimeKey(event?.time || event?.Vreme),
+  normalizePlaceKey(event?.location || event?.address || event?.Adresa || event?.Lokacija),
+].join("|");
 const isPublicEvent = (event) =>
   event?.status === "approved" ||
   event?.statusRaw === "odobrena" ||
@@ -143,11 +172,14 @@ export default function TvojGrad() {
     window.scrollTo(0, 0);
   };
 
-  useEffect(() => {
-    const onPopState = () => setRoute(parseRoute());
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, []);
+useEffect(() => {
+  if (!backendUserId) return;
+  (async () => {
+    console.log("[Notif] Starting init, backendUserId:", backendUserId);
+    const result = await initMobileNotifications();
+    console.log("[Notif] initMobileNotifications result:", result);
+  })();
+}, [backendUserId]);
 
   useEffect(() => {
     if (route.page === "profile" && route.profileTab) {
@@ -172,8 +204,14 @@ export default function TvojGrad() {
       return;
     }
 
+    setRouteEvent(null);
+    const requestedEventId = route.eventId;
     fetchEventById(route.eventId)
-      .then(setRouteEvent)
+      .then((event) => {
+        if (String(getEventId(event)) === String(requestedEventId)) {
+          setRouteEvent(event);
+        }
+      })
       .catch(() => setRouteEvent(null));
   }, [route.page, route.eventId]);
 
@@ -193,7 +231,61 @@ export default function TvojGrad() {
   }, [page, userRole, backendUserId]);
 
   useEffect(() => {
-    if (backendUserId) void initMobileNotifications();
+    if (!backendUserId) {
+      void stopMobileBackgroundNotifications();
+      return undefined;
+    }
+
+    const startBackgroundNotifications = () => {
+      void startMobileBackgroundNotifications({ userId: backendUserId, apiBaseUrl: getApiBaseUrl() });
+    };
+
+    void initMobileNotifications();
+    startBackgroundNotifications();
+    const retryTimeout = window.setTimeout(startBackgroundNotifications, 1500);
+    const retryInterval = window.setInterval(startBackgroundNotifications, 15000);
+    document.addEventListener("visibilitychange", startBackgroundNotifications);
+    window.addEventListener("focus", startBackgroundNotifications);
+
+    return () => {
+      window.clearTimeout(retryTimeout);
+      window.clearInterval(retryInterval);
+      document.removeEventListener("visibilitychange", startBackgroundNotifications);
+      window.removeEventListener("focus", startBackgroundNotifications);
+    };
+  }, [backendUserId]);
+
+  useEffect(() => {
+    if (!backendUserId) {
+      void setMobileNotificationOpenHandler(null);
+      return undefined;
+    }
+
+    let active = true;
+    void setMobileNotificationOpenHandler((extra) => {
+      if (!active) return;
+
+      if (extra?.type === "chat") {
+        if (extra.cetId) {
+          localStorage.setItem(`openCetId:${backendUserId}`, String(extra.cetId));
+          markBackendChatRead(extra.cetId);
+        }
+        navigate("profile", null, { profileTab: "inbox" });
+        return;
+      }
+
+      if (extra?.type === "psm-request") {
+        if (extra.requestId) {
+          localStorage.setItem(`openPsmRequestId:${backendUserId}`, String(extra.requestId));
+        }
+        navigate("profile", null, { profileTab: "inbox" });
+      }
+    });
+
+    return () => {
+      active = false;
+      void setMobileNotificationOpenHandler(null);
+    };
   }, [backendUserId]);
 
   const loadAdminData = async () => {
@@ -229,12 +321,15 @@ export default function TvojGrad() {
     let client;
     let cancelled = false;
     let initialChatScan = true;
+    let initialRequestScan = true;
     let chatPollId;
     let websocketStarted = false;
     const handledMessageKeys = new Set();
     const handledRequestKeys = new Set();
     const readStorageKey = `readCetMessages:${backendUserId}`;
     const rejectedRequestStorageKey = `rejectedPsmRequests:${backendUserId}`;
+    const receivedRequestStorageKey = `receivedPsmRequests:${backendUserId}`;
+    const acceptedRequestStorageKey = `acceptedPsmRequests:${backendUserId}`;
 
     const getReadMap = () => {
       try {
@@ -283,11 +378,58 @@ export default function TvojGrad() {
       return true;
     };
 
+    const isPendingRequestStatus = (status) => {
+      const value = String(status || "").toLowerCase();
+      return value.includes("cek") || value.includes("ček") || value.includes("pending");
+    };
+
+    const isAcceptedRequestStatus = (status) => {
+      const value = String(status || "").toLowerCase();
+      return value.includes("prihvac") || value.includes("prihva") || value.includes("accept");
+    };
+
+    const shouldNotifyReceivedRequest = (request) => {
+      const requestId = request?.ID || request?.id;
+      const senderId = getUserId(request.PosloZahtev || request.posloZahtev);
+      const receiverId = request?.PrimioZahtev || request?.primioZahtev;
+      if (String(receiverId) !== String(backendUserId) || !isPendingRequestStatus(request?.status)) return false;
+      const key = `psm-received:${requestId || `${senderId || "sender"}:${receiverId || "receiver"}`}`;
+      if (handledRequestKeys.has(key)) return false;
+      handledRequestKeys.add(key);
+      try {
+        const delivered = JSON.parse(localStorage.getItem(receivedRequestStorageKey) || "{}");
+        if (delivered[key]) return false;
+        delivered[key] = Date.now();
+        localStorage.setItem(receivedRequestStorageKey, JSON.stringify(delivered));
+      } catch {
+        // In-memory dedupe still prevents repeated callbacks in this session.
+      }
+      return true;
+    };
+
+    const shouldNotifyAcceptedRequest = (request) => {
+      const requestId = request?.ID || request?.id;
+      const senderId = getUserId(request.PosloZahtev || request.posloZahtev);
+      const receiverId = request?.PrimioZahtev || request?.primioZahtev;
+      if (String(senderId) !== String(backendUserId) || !isAcceptedRequestStatus(request?.status)) return false;
+      const key = `psm-accepted:${requestId || `${senderId || "sender"}:${receiverId || "receiver"}`}`;
+      if (handledRequestKeys.has(key)) return false;
+      handledRequestKeys.add(key);
+      try {
+        const delivered = JSON.parse(localStorage.getItem(acceptedRequestStorageKey) || "{}");
+        if (delivered[key]) return false;
+        delivered[key] = Date.now();
+        localStorage.setItem(acceptedRequestStorageKey, JSON.stringify(delivered));
+      } catch {
+        // In-memory dedupe still prevents repeated callbacks in this session.
+      }
+      return true;
+    };
+
     const loadGlobalChatNotifications = async () => {
       try {
         const cetsResponse = await fetch(`${API_BASE_URL}/cetovi/korisnik/${backendUserId}`);
-        if (!cetsResponse.ok) return;
-        const cets = await cetsResponse.json();
+        const cets = cetsResponse.ok ? await cetsResponse.json() : [];
         const readMap = getReadMap();
         const nextUnread = {};
 
@@ -326,6 +468,22 @@ export default function TvojGrad() {
           initialChatScan = false;
         }
 
+        const requestsResponse = await fetch(`${API_BASE_URL}/zahtevi`);
+        if (requestsResponse.ok) {
+          const requests = await requestsResponse.json();
+          (requests || []).forEach((request) => {
+            if (shouldNotifyReceivedRequest(request) && !initialRequestScan) {
+              toast("Stigao je novi Podji sa mnom zahtjev");
+              void notifyPsmRequestReceived({ request });
+            }
+            if (shouldNotifyAcceptedRequest(request) && !initialRequestScan) {
+              toast("Zahtjev je prihvacen");
+              void notifyPsmRequestAccepted({ request });
+            }
+          });
+          initialRequestScan = false;
+        }
+
         if (!cancelled && !websocketStarted) {
           websocketStarted = true;
           window.global = window.global || window;
@@ -333,7 +491,7 @@ export default function TvojGrad() {
           if (cancelled) return;
 
           client = new Client({
-            webSocketFactory: () => new SockJS(`${API_BASE_URL}/ws-tvojgrad`),
+            webSocketFactory: () => new SockJS(`${getApiBaseUrl()}/ws-tvojgrad`),
             reconnectDelay: 3000,
             onConnect: () => {
               client.subscribe(`/topic/korisnik/${backendUserId}/poruke`, (message) => {
@@ -348,9 +506,17 @@ export default function TvojGrad() {
                 const request = JSON.parse(message.body);
                 const senderId = getUserId(request.PosloZahtev || request.posloZahtev);
                 const status = String(request.status || "").toLowerCase();
+                if (shouldNotifyReceivedRequest(request)) {
+                  toast("Stigao je novi Podji sa mnom zahtjev");
+                  void notifyPsmRequestReceived({ request });
+                }
                 if (String(senderId) === String(backendUserId) && status.includes("odbij") && shouldNotifyRejectedRequest(request)) {
                   toast("Pođi sa mnom zahtjev je odbijen");
                   void notifyPsmRequestRejected({ request });
+                }
+                if (shouldNotifyAcceptedRequest(request)) {
+                  toast("Zahtjev je prihvacen");
+                  void notifyPsmRequestAccepted({ request });
                 }
               });
             },
@@ -363,7 +529,7 @@ export default function TvojGrad() {
     };
 
     loadGlobalChatNotifications();
-    chatPollId = setInterval(loadGlobalChatNotifications, 4000);
+    chatPollId = setInterval(loadGlobalChatNotifications, 7000);
 
     return () => {
       cancelled = true;
@@ -505,9 +671,11 @@ export default function TvojGrad() {
       toast("Greška u unosu podataka");
       return false;
     }
-    const titleExists = events.some((event) => normalizeEventTitle(event.title || event.Naslov) === newTitle);
-    if (titleExists) {
-      toast("Događaj sa ovim imenom već postoji");
+    const newSlotKey = eventSlotKey(newEv);
+    const currentEvents = await fetchAdminEvents().catch(() => events);
+    const slotExists = currentEvents.some((event) => eventSlotKey(event) === newSlotKey);
+    if (slotExists) {
+      toast("Dogadjaj sa istim datumom, vremenom i mjestom vec postoji");
       return false;
     }
 
@@ -521,7 +689,7 @@ export default function TvojGrad() {
       return true;
     } catch (err) {
       console.error(err);
-      toast("Greška u unosu podataka");
+      toast(err.message || "Greska u unosu podataka");
       return false;
     }
   };
@@ -541,7 +709,7 @@ export default function TvojGrad() {
       return true;
     } catch (err) {
       console.error(err);
-      toast("Događaj nije sačuvan");
+      toast(err.message || "Dogadjaj nije sacuvan");
       return false;
     }
   };
@@ -734,7 +902,7 @@ export default function TvojGrad() {
   const favEvents = eventsForCurrentUser.filter((e) => e.fav && isPublicEvent(e));
   const detailEvent =
     page === "detail"
-      ? routeEvent ||
+      ? (String(getEventId(routeEvent)) === String(route.eventId) ? routeEvent : null) ||
         eventsForCurrentUser.find((e) => String(getEventId(e)) === String(route.eventId)) ||
         (String(getEventId(selectedEvent)) === String(route.eventId) ? selectedEvent : null)
       : null;

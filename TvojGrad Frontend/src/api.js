@@ -1,4 +1,11 @@
 export const API_BASE_URL = "http://localhost:8080";
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+const MONTENEGRO_BOUNDS = {
+  north: 43.65,
+  south: 41.75,
+  east: 20.55,
+  west: 18.35,
+};
 
 export const getStoredUser = () => {
   try {
@@ -52,6 +59,102 @@ export const toDateInputValue = (value) => {
 const toBackendDateValue = (value) => {
   const date = toDateInputValue(value);
   return date ? `${date}T12:00:00` : null;
+};
+
+const normalizeText = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+
+const canonicalCity = (value) => {
+  const normalized = normalizeText(value);
+  const aliases = {
+    niksic: "niksic",
+    "niksic municipality": "niksic",
+    "opstina niksic": "niksic",
+    rozaje: "rozaje",
+    kolasin: "kolasin",
+    zabljak: "zabljak",
+  };
+  return aliases[normalized] || normalized;
+};
+
+const isInMontenegro = ({ lat, lng }) =>
+  lat >= MONTENEGRO_BOUNDS.south &&
+  lat <= MONTENEGRO_BOUNDS.north &&
+  lng >= MONTENEGRO_BOUNDS.west &&
+  lng <= MONTENEGRO_BOUNDS.east;
+
+const geocodeResultMatchesCity = (result, city) => {
+  const expectedCity = canonicalCity(city);
+  if (!expectedCity) return true;
+
+  const componentCity = (result.address_components || [])
+    .filter((component) => component.types?.some((type) => [
+      "locality",
+      "postal_town",
+      "administrative_area_level_2",
+      "administrative_area_level_1",
+    ].includes(type)))
+    .some((component) =>
+      canonicalCity(component.long_name) === expectedCity ||
+      canonicalCity(component.short_name) === expectedCity
+    );
+
+  return componentCity || normalizeText(result.formatted_address).includes(expectedCity);
+};
+
+const resolveEventCoordinates = async (event) => {
+  const existingLat = Number(event?.lat ?? event?.Latitude);
+  const existingLng = Number(event?.lng ?? event?.Longitude);
+  if (Number.isFinite(existingLat) && Number.isFinite(existingLng)) return { lat: existingLat, lng: existingLng };
+  if (!GOOGLE_MAPS_API_KEY) return null;
+
+  const address = event.location || event.address || event.Adresa || "";
+  const city = event.city || event.Grad || "";
+  if (!address && !city) return null;
+
+  const params = new URLSearchParams({
+    address: [address, city, "Montenegro"].filter(Boolean).join(", "),
+    components: "country:ME",
+    bounds: `${MONTENEGRO_BOUNDS.south},${MONTENEGRO_BOUNDS.west}|${MONTENEGRO_BOUNDS.north},${MONTENEGRO_BOUNDS.east}`,
+    key: GOOGLE_MAPS_API_KEY,
+  });
+
+  try {
+    const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    const matched = (data.results || []).find((result) => geocodeResultMatchesCity(result, city));
+    const location = matched?.geometry?.location;
+    if (!location) return null;
+    const coords = { lat: Number(location.lat), lng: Number(location.lng) };
+    return Number.isFinite(coords.lat) && Number.isFinite(coords.lng) && isInMontenegro(coords) ? coords : null;
+  } catch {
+    return null;
+  }
+};
+
+const eventPayload = async (event, userId, overrides = {}) => {
+  const coords = await resolveEventCoordinates(event);
+  return {
+    Naslov: event.title,
+    Opis: event.desc,
+    Datum: toBackendDateValue(event.date || event.Datum),
+    Vreme: event.time,
+    Grad: event.city,
+    Adresa: event.location || event.address,
+    Organizator_ID: userId,
+    Tip_dogadjaja: event.category,
+    Emoji: event.emoji,
+    Cijena: Number(event.price || 0),
+    Latitude: coords?.lat ?? null,
+    Longitude: coords?.lng ?? null,
+    ...overrides,
+  };
 };
 
 export const absoluteImgSrc = (src) => {
@@ -138,6 +241,8 @@ export const formatEvent = (event) => ({
   status: event.Status === "odobrena" || event.Status === "promovisana" ? "approved" : event.Status,
   organizer: event.Organizator || event.organizator || "",
   organizerId: event.Organizator_ID,
+  lat: event.Latitude ?? event.latitude ?? event.lat ?? null,
+  lng: event.Longitude ?? event.longitude ?? event.lng ?? null,
   votes: {
     up: event.Upvote ?? 0,
     down: event.Downvote ?? 0,
@@ -226,54 +331,42 @@ export const removeVote = async (eventId, userId) => {
 };
 
 export const createEvent = async (event, userId) => {
+  const payload = await eventPayload(event, userId, {
+    Upvote: 0,
+    Downvote: 0,
+    Status: event.promoted ? "na_cekanju_promovisana" : "na_cekanju",
+    Administrator_ID: null,
+    slika_1: null,
+  });
   const response = await fetch(`${API_BASE_URL}/dogadjaji`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      Naslov: event.title,
-      Opis: event.desc,
-      Datum: toBackendDateValue(event.date || event.Datum),
-      Vreme: event.time,
-      Upvote: 0,
-      Downvote: 0,
-      Status: event.promoted ? "na_cekanju_promovisana" : "na_cekanju",
-      Grad: event.city,
-      Adresa: event.location || event.address,
-      Organizator_ID: userId,
-      Administrator_ID: null,
-      Tip_dogadjaja: event.category,
-      slika_1: null,
-      Emoji: event.emoji,
-      Cijena: Number(event.price || 0),
-    }),
+    body: JSON.stringify(payload),
   });
-  if (!response.ok) throw new Error("Događaj nije sačuvan");
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(message || "Događaj nije sačuvan");
+  }
   return formatEvent(await response.json());
 };
 
 export const updateEvent = async (eventId, event, userId) => {
+  const payload = await eventPayload(event, event.organizerId || event.Organizator_ID || userId, {
+    Upvote: event.votes?.up ?? event.Upvote ?? 0,
+    Downvote: event.votes?.down ?? event.Downvote ?? 0,
+    Status: event.statusRaw || event.Status || (event.promoted ? "na_cekanju_promovisana" : "na_cekanju"),
+    Administrator_ID: event.Administrator_ID || null,
+    slika_1: event.imagePath || event.slika_1 || event.Slika_1 || null,
+  });
   const response = await fetch(`${API_BASE_URL}/dogadjaji/${eventId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      Naslov: event.title,
-      Opis: event.desc,
-      Datum: toBackendDateValue(event.date || event.Datum),
-      Vreme: event.time,
-      Upvote: event.votes?.up ?? event.Upvote ?? 0,
-      Downvote: event.votes?.down ?? event.Downvote ?? 0,
-      Status: event.statusRaw || event.Status || (event.promoted ? "na_cekanju_promovisana" : "na_cekanju"),
-      Grad: event.city,
-      Adresa: event.location || event.address,
-      Organizator_ID: event.organizerId || event.Organizator_ID || userId,
-      Administrator_ID: event.Administrator_ID || null,
-      Tip_dogadjaja: event.category,
-      slika_1: event.imagePath || event.slika_1 || event.Slika_1 || null,
-      Emoji: event.emoji,
-      Cijena: Number(event.price || 0),
-    }),
+    body: JSON.stringify(payload),
   });
-  if (!response.ok) throw new Error("Događaj nije sačuvan");
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(message || "Događaj nije sačuvan");
+  }
   const data = await response.json();
   return formatEvent({
     ...event,

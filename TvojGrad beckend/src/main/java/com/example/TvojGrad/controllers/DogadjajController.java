@@ -3,6 +3,8 @@ package com.example.TvojGrad.controllers;
 import com.example.TvojGrad.models.Dogadjaj;
 import com.example.TvojGrad.models.VoteRequest;
 import com.example.TvojGrad.services.DogadjajService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -41,13 +43,29 @@ public class DogadjajController {
     }
 
     @PostMapping
-    public Dogadjaj kreirajDogadjaj(@RequestBody Dogadjaj dogadjaj) {
-        return this.dogadjajService.kreirajDogadjaj(dogadjaj);
+    public ResponseEntity<?> kreirajDogadjaj(@RequestBody Dogadjaj dogadjaj) {
+        try {
+            Dogadjaj kreirani = this.dogadjajService.kreirajDogadjaj(dogadjaj);
+            if (kreirani == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Dogadjaj nije sacuvan.");
+            }
+            return ResponseEntity.ok(kreirani);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        }
     }
 
     @PutMapping(value = "/{DogadjajID}")
-    public Dogadjaj azurirajDogadjaj(@PathVariable("DogadjajID") int DogadjajID, @RequestBody Dogadjaj dogadjaj) {
-        return this.dogadjajService.AzuritanjeDogadjaja(DogadjajID, dogadjaj);
+    public ResponseEntity<?> azurirajDogadjaj(@PathVariable("DogadjajID") int DogadjajID, @RequestBody Dogadjaj dogadjaj) {
+        try {
+            Dogadjaj azurirani = this.dogadjajService.AzuritanjeDogadjaja(DogadjajID, dogadjaj);
+            if (azurirani == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Dogadjaj nije sacuvan.");
+            }
+            return ResponseEntity.ok(azurirani);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        }
     }
 
     @PutMapping(value = "/{DogadjajID}/odobri")

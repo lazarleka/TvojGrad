@@ -158,6 +158,55 @@ const saveStoredCoords = (query, coords) => {
   }
 };
 
+const directionsUrlFor = ({ originText, originCoords, destinationText, destinationCoords }) => {
+  const origin = originCoords ? `${originCoords[0]},${originCoords[1]}` : originText;
+  const destination = destinationCoords ? `${destinationCoords[0]},${destinationCoords[1]}` : destinationText;
+  return `https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+};
+
+const cyrillicToLatin = (value) => {
+  const pairs = {
+    А: "A", Б: "B", В: "V", Г: "G", Д: "D", Ђ: "Đ", Е: "E", Ж: "Ž", З: "Z", И: "I", Ј: "J", К: "K", Л: "L", Љ: "Lj", М: "M",
+    Н: "N", Њ: "Nj", О: "O", П: "P", Р: "R", С: "S", Т: "T", Ћ: "Ć", У: "U", Ф: "F", Х: "H", Ц: "C", Ч: "Č", Џ: "Dž", Ш: "Š",
+    а: "a", б: "b", в: "v", г: "g", д: "d", ђ: "đ", е: "e", ж: "ž", з: "z", и: "i", ј: "j", к: "k", л: "l", љ: "lj", м: "m",
+    н: "n", њ: "nj", о: "o", п: "p", р: "r", с: "s", т: "t", ћ: "ć", у: "u", ф: "f", х: "h", ц: "c", ч: "č", џ: "dž", ш: "š",
+  };
+  return String(value || "").replace(/[А-ШЂЈЉЊЋЏа-шђјљњћџ]/g, (letter) => pairs[letter] || letter);
+};
+
+const reverseGeocodeCoords = async (coords) => {
+  if (!coords) return null;
+  const params = new URLSearchParams({
+    format: "jsonv2",
+    lat: String(coords[0]),
+    lon: String(coords[1]),
+    zoom: "18",
+    addressdetails: "1",
+  });
+
+  try {
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`, {
+      headers: { "Accept-Language": "sr-Latn,me,en" },
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const address = data.address || {};
+    const street = [address.road || address.pedestrian || address.neighbourhood || address.suburb, address.house_number]
+      .filter(Boolean)
+      .join(" ");
+    const city = address.city || address.town || address.village || address.municipality || address.county;
+    return cyrillicToLatin([street, city, address.country].filter(Boolean).join(", ") || data.display_name || null);
+  } catch {
+    return null;
+  }
+};
+
+const locationLabelFor = (event) => {
+  const address = getRawEventAddress(event) || getEventAddress(event);
+  const city = getEventCity(event);
+  return [address, city, "Montenegro"].filter(Boolean).join(", ");
+};
+
 const loadLeaflet = () => {
   if (window.L) return Promise.resolve(window.L);
   if (leafletPromise) return leafletPromise;
@@ -270,6 +319,10 @@ export default function EventMap({ events = [], event = null, title = "Mapa doga
   const [selectedId, setSelectedId] = useState(() => getEventId(event || events[0]));
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState(false);
+  const [originInput, setOriginInput] = useState("");
+  const [originCoords, setOriginCoords] = useState(null);
+  const [directionsError, setDirectionsError] = useState("");
+  const [directionsLoading, setDirectionsLoading] = useState(false);
 
   const mapEvents = useMemo(() => (event ? [event] : events).filter(Boolean), [event, events]);
   const mapEventsKey = useMemo(
@@ -426,6 +479,59 @@ export default function EventMap({ events = [], event = null, title = "Mapa doga
     }
   };
 
+  const useCurrentLocation = () => {
+    setDirectionsError("");
+    if (!navigator.geolocation) {
+      setDirectionsError("Uredjaj ne podrzava trenutnu lokaciju.");
+      return;
+    }
+
+    setDirectionsLoading(true);
+    setOriginInput("Trazim vasu lokaciju...");
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const coords = [position.coords.latitude, position.coords.longitude];
+        const label = await reverseGeocodeCoords(coords);
+        setOriginCoords(coords);
+        setOriginInput(label || `${coords[0].toFixed(5)}, ${coords[1].toFixed(5)}`);
+        setDirectionsLoading(false);
+      },
+      () => {
+        setOriginCoords(null);
+        setOriginInput("");
+        setDirectionsError("Trenutna lokacija nije dostupna. Unesite lokaciju rucno.");
+        setDirectionsLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  };
+
+  const showDirections = async () => {
+    if (!selected) return;
+    setDirectionsError("");
+    setDirectionsLoading(true);
+
+    try {
+      if (!originCoords && !originInput.trim()) {
+        setDirectionsError("Unesite svoju adresu ili izaberite trenutnu lokaciju.");
+        return;
+      }
+
+      const destinationCoords = await geocodeEvent(selected);
+      const destinationText = locationLabelFor(selected);
+      window.open(directionsUrlFor({
+        originText: originInput,
+        originCoords,
+        destinationText,
+        destinationCoords,
+      }), "_blank", "noopener,noreferrer");
+    } catch {
+      setDirectionsError("Ruta trenutno nije dostupna.");
+    } finally {
+      setDirectionsLoading(false);
+    }
+  };
+
   if (!mapEvents.length) return null;
 
   return (
@@ -460,6 +566,33 @@ export default function EventMap({ events = [], event = null, title = "Mapa doga
             );
           })}
         </div>}
+      </div>
+      <div className="event-directions-panel">
+        <div className="event-directions-title">Direkcija do lokacije</div>
+        <div className="event-directions-row">
+          <input
+            className="event-directions-input"
+            value={originInput}
+            onChange={(ev) => {
+              setOriginInput(ev.target.value);
+              setOriginCoords(null);
+              setDirectionsError("");
+            }}
+            placeholder="Unesite svoju adresu"
+          />
+          <button className="event-directions-secondary" type="button" onClick={useCurrentLocation} disabled={directionsLoading}>
+            Moja lokacija
+          </button>
+          <button className="event-directions-primary" type="button" onClick={showDirections} disabled={directionsLoading || !selected}>
+            {directionsLoading ? "Trazenje..." : "Prikazi rutu"}
+          </button>
+        </div>
+        {selected ? (
+          <div className="event-directions-destination">
+            Cilj: {translateText(getEventAddress(selected) || getEventCity(selected) || getEventTitle(selected), language)}
+          </div>
+        ) : null}
+        {directionsError ? <div className="event-directions-error">{directionsError}</div> : null}
       </div>
     </section>
   );

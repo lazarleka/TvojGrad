@@ -53,6 +53,13 @@ public class Dogadjaj {
     private String Emoji;
     @JsonProperty("Cijena")
     private Double Cijena;
+
+    @JsonProperty("Latitude")
+    private Double Latitude;
+
+    @JsonProperty("Longitude")
+    private Double Longitude;
+
     public Dogadjaj() {}
 
     public Dogadjaj(
@@ -74,7 +81,7 @@ public class Dogadjaj {
             Double Cijena
     ) {
         this(ID, Naslov, Opis, Datum, Vreme, Upvote, Downvote, Status, Grad, Adresa, Organizator_ID,
-                null, Administrator_ID, Tip_dogadjaja, slika_1, Emoji, Cijena);
+                null, Administrator_ID, Tip_dogadjaja, slika_1, Emoji, Cijena, null, null);
     }
 
     public Dogadjaj(
@@ -96,6 +103,31 @@ public class Dogadjaj {
             String Emoji,
             Double Cijena
     ) {
+        this(ID, Naslov, Opis, Datum, Vreme, Upvote, Downvote, Status, Grad, Adresa, Organizator_ID,
+                Organizator, Administrator_ID, Tip_dogadjaja, slika_1, Emoji, Cijena, null, null);
+    }
+
+    public Dogadjaj(
+            Integer ID,
+            String Naslov,
+            String Opis,
+            String Datum,
+            String Vreme,
+            Integer Upvote,
+            Integer Downvote,
+            String Status,
+            String Grad,
+            String Adresa,
+            Integer Organizator_ID,
+            String Organizator,
+            Integer Administrator_ID,
+            String Tip_dogadjaja,
+            String slika_1,
+            String Emoji,
+            Double Cijena,
+            Double Latitude,
+            Double Longitude
+    ) {
         this.ID = ID;
         this.Naslov = Naslov;
         this.Opis = Opis;
@@ -113,6 +145,8 @@ public class Dogadjaj {
         this.slika_1 = slika_1;
         this.Emoji = Emoji;
         this.Cijena=Cijena;
+        this.Latitude = Latitude;
+        this.Longitude = Longitude;
     }
 
     public Integer getID() { return ID; }
@@ -132,6 +166,8 @@ public class Dogadjaj {
     public String getSlika_1() { return slika_1; }
     public String getEmoji() { return Emoji; }
     public Double getCijena(){return Cijena;}
+    public Double getLatitude() { return Latitude; }
+    public Double getLongitude() { return Longitude; }
 
     public void setID(Integer ID) { this.ID = ID; }
     public void setNaslov(String naslov) { this.Naslov = naslov; }
@@ -150,4 +186,6 @@ public class Dogadjaj {
     public void setSlika_1(String slika_1) { this.slika_1 = slika_1; }
     public void setEmoji(String emoji) { this.Emoji = emoji; }
     public void setCijena(Double Cijena){this.Cijena=Cijena; }
+    public void setLatitude(Double latitude) { this.Latitude = latitude; }
+    public void setLongitude(Double longitude) { this.Longitude = longitude; }
 }

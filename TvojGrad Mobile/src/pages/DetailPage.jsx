@@ -28,6 +28,8 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
   }, [e]);
 
   useEffect(() => {
+    setIsFav(false);
+    setMyVote(null);
     if (!uid || !eventId) return;
 
     fetch(`${API_BASE_URL}/OmiljeniDogadjaji/${uid}`)
@@ -135,6 +137,19 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
     if (myVote === voteType) return;
 
     const previousVote = myVote;
+    const previousEvent = event;
+    const optimisticVotes = {
+      up: votes.up + (voteType === "up" ? 1 : 0) - (previousVote === "up" ? 1 : 0),
+      down: votes.down + (voteType === "down" ? 1 : 0) - (previousVote === "down" ? 1 : 0),
+    };
+    setMyVote(voteType);
+    setEvent((current) => ({
+      ...current,
+      votes: optimisticVotes,
+      Upvote: optimisticVotes.up,
+      Downvote: optimisticVotes.down,
+    }));
+
     try {
       const updated = await submitVote(eventId, uid, voteType);
       let nextEvent = updated;
@@ -146,6 +161,8 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
       toast && toast(voteType === "up" ? "Glasali ste!" : "Reagovali ste");
     } catch (err) {
       console.error(err);
+      setEvent(previousEvent);
+      setMyVote(previousVote);
       toast && toast("Glas nije sačuvan.");
     }
   };

@@ -27,6 +27,12 @@ const userName = (user) =>
 const userId = (user) => user.ID || user.id;
 const isPendingOrganizer = (user) => (user.Status || user.status) === "na_cekanju_organizator";
 const isRejectedOrganizer = (user) => (user.Status || user.status) === "odbijen_organizator";
+const eventTimeValue = (event) => {
+  const datePart = event?.date ? String(event.date).slice(0, 10) : "";
+  const timePart = event?.time ? String(event.time).slice(0, 5) : "00:00";
+  const timeValue = datePart ? new Date(`${datePart}T${timePart || "00:00"}`).getTime() : Number.NaN;
+  return Number.isFinite(timeValue) ? timeValue : 0;
+};
 
 export default function AdminPage({
   events,
@@ -43,10 +49,20 @@ export default function AdminPage({
   language = "SRB",
 }) {
   const [tab, setTab] = useState("pending");
+  const [eventTimeTab, setEventTimeTab] = useState("active");
+  const nowTime = Date.now();
   const pending = events.filter((event) => ["pending", "na_cekanju", "na_cekanju_promovisana"].includes(event.status));
   const approved = events.filter((event) => event.status === "approved");
   const rejected = events.filter((event) => ["rejected", "odbijena", "arhivirana"].includes(event.status));
-  const shown = tab === "pending" ? pending : tab === "approved" ? approved : rejected;
+  const shownByStatus = tab === "pending" ? pending : tab === "approved" ? approved : rejected;
+  const activeShown = shownByStatus
+    .filter((event) => eventTimeValue(event) >= nowTime)
+    .sort((a, b) => eventTimeValue(a) - eventTimeValue(b));
+  const pastShown = shownByStatus
+    .filter((event) => eventTimeValue(event) < nowTime)
+    .sort((a, b) => eventTimeValue(b) - eventTimeValue(a));
+  const shown = eventTimeTab === "past" ? pastShown : activeShown;
+  const isOrganizerTab = ["admins", "rejected-admins"].includes(tab);
   const organizerList = organizers.length ? organizers : adminRequests;
   const activeOrganizerList = organizerList.filter((organizer) => !isRejectedOrganizer(organizer));
   const rejectedOrganizerList = organizerList.filter(isRejectedOrganizer);
@@ -94,10 +110,26 @@ export default function AdminPage({
               </button>
             ))}
           </div>
+          {!isOrganizerTab && (
+            <div className="event-list-tabs admin-event-tabs">
+              {[
+                ["active", "Aktivni dogadjaji", activeShown.length],
+                ["past", "Prosli dogadjaji", pastShown.length],
+              ].map(([tabId, label, count]) => (
+                <button
+                  key={tabId}
+                  className={`event-list-tab${eventTimeTab === tabId ? " active" : ""}`}
+                  onClick={() => setEventTimeTab(tabId)}
+                >
+                  {label} <span>{count}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div style={{ overflowX: "auto" }}>
-          {["admins", "rejected-admins"].includes(tab) ? (
+          {isOrganizerTab ? (
             <table className="admin-table">
               <thead>
                 <tr><th>Organizator</th><th>Email</th><th>Status</th><th>Akcije</th></tr>

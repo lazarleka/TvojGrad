@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { G } from "../constants";
 import InboxPanel from "../components/InboxPanel";
-import { API_BASE_URL, absoluteImgSrc, fetchEvents, fetchUserVote, formatDisplayDate, formatDisplayTime, formatEvent, getUserId, uploadProfileImage } from "../api";
+import { API_BASE_URL, absoluteImgSrc, fetchEvents, fetchUserVote, formatDisplayDate, formatDisplayTime, formatEvent, getApiBaseUrl, getUserId, uploadProfileImage } from "../api";
 import { Client } from "@stomp/stompjs";
 import { translateText } from "../i18n";
 import { notifyNewChatMessage } from "../mobileNotifications";
@@ -120,10 +120,12 @@ export default function ProfilePage({
   const [activeCetId, setActiveCetId] = useState(null);
   const [chatMessages, setChatMessages] = useState({});
   const [chatInput, setChatInput] = useState("");
+  const [chatSearch, setChatSearch] = useState("");
   const [stompClient, setStompClient] = useState(null);
   const [unreadCetIds, setUnreadCetIds] = useState({});
   const [usersById, setUsersById] = useState({});
   const [eventTitlesById, setEventTitlesById] = useState({});
+  const backendMsgsRef = useRef(null);
 
   const appendChatMessage = (cetId, message) => {
     if (!cetId || !message) return;
@@ -147,7 +149,7 @@ export default function ProfilePage({
     const intervalId = setInterval(() => {
       loadRequests();
       loadCets();
-    }, 4000);
+    }, 7000);
     return () => clearInterval(intervalId);
   }, [uid]);
 
@@ -402,7 +404,7 @@ export default function ProfilePage({
       if (cancelled) return;
 
       client = new Client({
-        webSocketFactory: () => new SockJS(`${API_BASE_URL}/ws-tvojgrad`),
+        webSocketFactory: () => new SockJS(`${getApiBaseUrl()}/ws-tvojgrad`),
         reconnectDelay: 3000,
         onConnect: () => {
           dbCets.forEach((cet) => {
@@ -482,6 +484,22 @@ export default function ProfilePage({
       setProfileTab("inbox");
     }
   };
+
+  useEffect(() => {
+    if (!uid || dbRequests.length === 0) return;
+    const storageKey = `openPsmRequestId:${uid}`;
+    const requestedRequestId = localStorage.getItem(storageKey);
+    if (!requestedRequestId) return;
+
+    const targetRequest = dbRequests.find((request) => String(request.ID || request.id) === String(requestedRequestId));
+    if (!targetRequest) return;
+
+    setProfileTab("inbox");
+    if (statusLabel(targetRequest.status).toLowerCase().startsWith("prihva")) {
+      void openChatForRequest(targetRequest);
+    }
+    localStorage.removeItem(storageKey);
+  }, [uid, dbRequests, setProfileTab]);
 
   const updateRequestStatus = async (request, nextStatus) => {
     try {
@@ -757,6 +775,12 @@ export default function ProfilePage({
       onMarkChatRead(activeCetId, latestMessageIdForCet(activeCetId));
     }
   }, [activeCetId, backendChatMessages.length]);
+
+  useEffect(() => {
+    if (!backendMsgsRef.current) return;
+    backendMsgsRef.current.scrollTop = backendMsgsRef.current.scrollHeight;
+  }, [activeCetId, backendChatMessages.length]);
+
   const getOtherUser = (cet) => {
     const sender = cet.Posiljalac || cet.posiljalac;
     const senderId = getUserId(sender);
@@ -798,6 +822,14 @@ export default function ProfilePage({
   };
   const activeOtherUser = activeCet ? getOtherUser(activeCet) : null;
   const activeOtherName = activeOtherUser ? userName(activeOtherUser) : "Chat";
+  const normalizedChatSearch = chatSearch.trim().toLowerCase();
+  const visibleAcceptedCets = acceptedCets.filter((cet) => {
+    if (!normalizedChatSearch) return true;
+    const otherUser = getOtherUser(cet);
+    const otherName = otherUser ? userName(otherUser) : "Korisnik";
+    const otherEmail = otherUser?.Email || otherUser?.email || "";
+    return `${otherName} ${otherEmail}`.toLowerCase().includes(normalizedChatSearch);
+  });
 
   return (
     <div className="main">
@@ -877,7 +909,13 @@ export default function ProfilePage({
                     <div style={{ fontSize: 13, fontWeight: 600, color: G.muted, marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                       Razgovori
                     </div>
-                    {acceptedCets.map((cet) => {
+                    <input
+                      className="inbox-search"
+                      value={chatSearch}
+                      onChange={(ev) => setChatSearch(ev.target.value)}
+                      placeholder="Pretrazi osobe"
+                    />
+                    {visibleAcceptedCets.map((cet) => {
                       const otherUser = getOtherUser(cet);
                       const otherName = otherUser ? userName(otherUser) : "Korisnik";
                       const otherEmail = otherUser?.Email || otherUser?.email || "";
@@ -907,6 +945,9 @@ export default function ProfilePage({
                         </div>
                       );
                     })}
+                    {visibleAcceptedCets.length === 0 && (
+                      <div className="inbox-empty-list">Nema razgovora za ovu pretragu.</div>
+                    )}
                   </div>
                   <div className="inbox-main">
                     {activeCet ? (
@@ -918,7 +959,7 @@ export default function ProfilePage({
                             <div style={{ fontSize: 12, color: G.muted }}>Pođi sa mnom chat</div>
                           </div>
                         </div>
-                        <div className="inbox-msgs">
+                        <div className="inbox-msgs" ref={backendMsgsRef}>
                           {backendChatMessages.map((message) => {
                             const mine = String(message.Posiljalac_ID || message.posiljalacID) === String(uid);
                             return (
