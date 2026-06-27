@@ -4,7 +4,6 @@ import InboxPanel from "../components/InboxPanel";
 import { API_BASE_URL, absoluteImgSrc, fetchEvents, fetchUserVote, formatDisplayDate, formatDisplayTime, formatEvent, getApiBaseUrl, getUserId, uploadProfileImage } from "../api";
 import { Client } from "@stomp/stompjs";
 import { translateText } from "../i18n";
-import { notifyNewChatMessage } from "../mobileNotifications";
 
 const normalizeRole = (role) => {
   if (role === "organizator") return "organizer";
@@ -418,7 +417,6 @@ export default function ProfilePage({
             appendChatMessage(cet.ID, received);
             if (String(senderId) !== String(uid) && String(activeCetId) !== String(cet.ID)) {
               setUnreadCetIds((prev) => ({ ...prev, [cet.ID]: true }));
-              void notifyNewChatMessage({ cetId: cet.ID, message: received });
             }
           });
           });

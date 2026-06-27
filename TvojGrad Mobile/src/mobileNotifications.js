@@ -7,7 +7,6 @@ let permissionRequested = false;
 let notificationsReady = false;
 let notificationOpenHandler = null;
 let notificationActionListenerReady = false;
-const deliveredMessageKeys = new Set();
 const deliveredRequestKeys = new Set();
 
 const notificationIdFor = (key) =>
@@ -127,12 +126,6 @@ export const stopMobileBackgroundNotifications = async () => {
   }
 };
 
-const senderNameFor = (message) => {
-  const sender = message?.Posiljalac || message?.posiljalac;
-  const fullName = `${sender?.Ime || sender?.ime || ""} ${sender?.Prezime || sender?.prezime || ""}`.trim();
-  return fullName || sender?.Email || sender?.email || "TvojGrad";
-};
-
 const requestSenderNameFor = (request) => {
   const sender = request?.PosloZahtev || request?.posloZahtev;
   const fullName = `${sender?.Ime || sender?.ime || ""} ${sender?.Prezime || sender?.prezime || ""}`.trim();
@@ -143,31 +136,6 @@ const requestReceiverNameFor = (request) => {
   const receiver = request?.PrimioZahtevKorisnik || request?.primioZahtevKorisnik;
   const fullName = `${receiver?.Ime || receiver?.ime || ""} ${receiver?.Prezime || receiver?.prezime || ""}`.trim();
   return fullName || receiver?.Email || receiver?.email || "Korisnik";
-};
-
-export const notifyNewChatMessage = async ({ cetId, message }) => {
-  const messageId = message?.ID || message?.id || `${cetId}:${message?.Vrijeme || message?.vrijeme || message?.Tekst || Date.now()}`;
-  const key = `${cetId}:${messageId}`;
-  if (deliveredMessageKeys.has(key)) return;
-  deliveredMessageKeys.add(key);
-
-  const ready = await initMobileNotifications();
-  if (!ready) return;
-
-  const LocalNotifications = loadLocalNotifications();
-  if (!LocalNotifications) return;
-
-  const body = String(message?.Tekst || message?.tekst || "Imate novu poruku").slice(0, 120);
-  await LocalNotifications.schedule({
-    notifications: [{
-      id: notificationIdFor(key),
-      title: senderNameFor(message),
-      body,
-      channelId: "chat",
-      schedule: { at: new Date(Date.now() + 100) },
-      extra: { type: "chat", cetId },
-    }],
-  });
 };
 
 export const notifyPsmRequestReceived = async ({ request }) => {

@@ -38,7 +38,6 @@ import {
 import { Client } from "@stomp/stompjs";
 import {
   initMobileNotifications,
-  notifyNewChatMessage,
   notifyPsmRequestAccepted,
   notifyPsmRequestReceived,
   notifyPsmRequestRejected,
@@ -355,7 +354,6 @@ useEffect(() => {
       if (notify) {
         setBackendUnreadCetIds((prev) => ({ ...prev, [cetId]: true }));
         toast("Stigla je nova poruka");
-        void notifyNewChatMessage({ cetId, message });
       }
       return true;
     };

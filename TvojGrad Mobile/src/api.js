@@ -1,4 +1,4 @@
-const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://192.168.1.107:8080";
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://192.168.1.105:8080";
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 const MONTENEGRO_BOUNDS = {
   north: 43.65,
@@ -17,7 +17,7 @@ const storedApiBaseUrl = (() => {
 
 const API_BASE_CANDIDATES = [
   configuredApiBaseUrl,
-  "http://192.168.1.107:8080",
+  "http://192.168.1.105:8080",
   storedApiBaseUrl,
   "http://10.0.2.2:8080",
   "http://172.20.10.3:8080",
@@ -28,7 +28,7 @@ const API_BASE_CANDIDATES = [
   .filter(Boolean)
   .filter((url, index, list) => list.indexOf(url) === index);
 
-let activeApiBaseUrl = API_BASE_CANDIDATES[0] || "http://192.168.1.107:8080";
+let activeApiBaseUrl = API_BASE_CANDIDATES[0] || "http://192.168.1.105:8080";
 export const API_BASE_URL = activeApiBaseUrl;
 
 const rememberApiBaseUrl = (baseUrl) => {
