@@ -113,7 +113,7 @@ const parseRoute = () => {
 export default function TvojGrad() {
   const [route, setRoute] = useState(parseRoute);
   const page = route.page;
-  const [profileTab, setProfileTab] = useState("favorites");
+  const [profileTab, setProfileTab] = useState("about");
   const [user, setUser] = useState(getStoredUser);
   const [events, setEvents] = useState(
     EVENTS_DATA.map((e) => ({ ...e, votes: { ...e.votes }, userVotes: {}, favoritesByUser: {} }))

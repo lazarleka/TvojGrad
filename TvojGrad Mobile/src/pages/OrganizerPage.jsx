@@ -205,11 +205,11 @@ export default function OrganizerPage({ user, events, addEvent, updateEvent, del
                 )}
               </div>
               <div className="my-event-actions">
-                <button className="action-btn" onClick={() => startEdit(event)}>Izmijeni</button>
+                <button className="action-btn" style={{ width: 105, minHeight: 38 }} onClick={() => startEdit(event)}>Izmijeni</button>
                 {event.status === "approved" && !event.promoted && (
-                  <button className="action-btn action-approve" onClick={() => promoteEvent(event.id)}>Promoviši</button>
+                  <button className="action-btn action-approve" style={{ width: 105, minHeight: 38 }} onClick={() => promoteEvent(event.id)}>Promoviši</button>
                 )}
-                <button className="action-btn action-delete" onClick={() => deleteEvent(event.id)}>Obriši</button>
+                <button className="action-btn action-delete" style={{ width: 105, minHeight: 38 }} onClick={() => deleteEvent(event.id)}>Obriši</button>
               </div>
             </div>
           ))}

@@ -52,8 +52,11 @@ public class DogadjajRepositories {
     private Double getOptionalDouble(ResultSet rs, String columnName, Double fallback) {
         try {
             Object value = rs.getObject(columnName);
-            return value != null ? rs.getDouble(columnName) : fallback;
+            if (value == null) return fallback;
+            return value instanceof Number ? ((Number) value).doubleValue() : Double.valueOf(value.toString());
         } catch (SQLException e) {
+            return fallback;
+        } catch (NumberFormatException e) {
             return fallback;
         }
     }

@@ -70,4 +70,8 @@ public class KorisnikService {
     public Korisnik azurirajProfilnu(int ID, String profilna) {
         return this.korisnikRepositories.azurirajProfilnu(ID, profilna);
     }
+
+    public Korisnik azurirajMatchingProfil(int ID, Korisnik korisnik) {
+        return this.korisnikRepositories.azurirajMatchingProfil(ID, korisnik);
+    }
 }

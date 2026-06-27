@@ -12,7 +12,7 @@ import java.util.List;
 public class KorisnikRepositories {
 
     private Korisnik mapRow(ResultSet rs) throws SQLException {
-        return new Korisnik(
+        Korisnik korisnik = new Korisnik(
                 rs.getInt("ID"),
                 rs.getString("Ime"),
                 rs.getString("Prezime"),
@@ -22,6 +22,11 @@ public class KorisnikRepositories {
                 rs.getString("Profilna"),
                 getOptionalString(rs, "Status", "aktivan")
         );
+        korisnik.setOMeni(getOptionalString(rs, "O_meni", ""));
+        korisnik.setInteresovanja(getOptionalString(rs, "Interesovanja", ""));
+        korisnik.setNeinteresovanja(getOptionalString(rs, "Neinteresovanja", ""));
+        korisnik.setGrad(getOptionalString(rs, "Grad", ""));
+        return korisnik;
     }
 
     private String getOptionalString(ResultSet rs, String columnName, String fallback) {
@@ -343,6 +348,23 @@ public class KorisnikRepositories {
                 try { conn.close(); }
                 catch (Exception ex) { System.out.println(ex); }
             }
+        }
+    }
+
+    public Korisnik azurirajMatchingProfil(int ID, Korisnik k) {
+        try (Connection conn = DBUtil.open();
+             PreparedStatement ps = conn.prepareStatement(
+                     "UPDATE korisnik SET O_meni=?, Interesovanja=?, Neinteresovanja=?, Grad=? WHERE ID=?")) {
+            ps.setString(1, k.getOMeni());
+            ps.setString(2, k.getInteresovanja());
+            ps.setString(3, k.getNeinteresovanja());
+            ps.setString(4, k.getGrad());
+            ps.setInt(5, ID);
+            ps.executeUpdate();
+            return getKorisnikById(ID);
+        } catch (SQLException e) {
+            System.out.println(e);
+            return null;
         }
     }
 }

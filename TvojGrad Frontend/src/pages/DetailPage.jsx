@@ -58,7 +58,8 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
   const loadPsmPrijave = async () => {
     setPsmLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/prijave/objava/${eventId}`);
+      const query = uid ? `?korisnikId=${encodeURIComponent(uid)}` : "";
+      const response = await fetch(`${API_BASE_URL}/prijave/objava/${eventId}${query}`);
       if (response.ok) {
         const data = await response.json();
         setPsmPrijave(newestFirst(data));
@@ -443,6 +444,7 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
                     <th>Osoba</th>
                     <th>Poruka</th>
                     <th>Status</th>
+                    <th>Podudaranje</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -461,11 +463,22 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
                       const applicantClosed = isClosedStatus(prijava.Status || prijava.status);
                       const fullName = `${korisnik?.Ime || korisnik?.ime || ""} ${korisnik?.Prezime || korisnik?.prezime || ""}`.trim() || korisnik?.Email || "Korisnik";
                       const canSendRequest = isLoggedIn && String(applicantId) !== String(uid) && !applicantClosed;
+                      const matchScore = prijava.Podudaranje ?? prijava.podudaranje;
+                      const matchLabel = prijava.Kategorija_podudaranja || prijava.kategorija_podudaranja;
+                      const matchColor = matchScore >= 75 ? "#16784f" : matchScore >= 50 ? "#39721d" : matchScore >= 25 ? "#a16609" : "#9b3c3c";
                       return (
                         <tr key={prijava.ID} style={{ borderBottom: "1px solid #f1f1f1" }}>
                           <td data-label="Osoba">{fullName}</td>
                           <td data-label="Poruka">{prijava.Tekst || "/"}</td>
                           <td data-label="Status">{prijava.Status || "/"}</td>
+                          <td data-label="Podudaranje">
+                            {matchScore == null ? "" : (
+                              <div title={(prijava.Razlozi_podudaranja || []).join(" · ")}>
+                                <strong style={{ color: matchColor }}>{matchScore}%</strong>
+                                <div style={{ color: matchColor, fontSize: 11, whiteSpace: "nowrap" }}>{matchLabel}</div>
+                              </div>
+                            )}
+                          </td>
                           <td data-label="Akcija">
                             {existingCet?.ID ? (
                               <button
@@ -475,10 +488,15 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
                                   background: "#fff",
                                   color: G.green,
                                   borderRadius: 10,
-                                  padding: "8px 10px",
+                                  padding: "3px 7px",
+                                  width: 130,
+                                  minHeight: 30,
+                                  fontSize: 13,
                                   cursor: "pointer",
                                   fontWeight: 700,
-                                  whiteSpace: "nowrap",
+                                  whiteSpace: "normal",
+                                  overflowWrap: "anywhere",
+                                  lineHeight: 1.2,
                                 }}
                               >
                                 Otvori chat
@@ -492,13 +510,18 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
                                   background: requestSent || requestJustSent || requestSending ? "#f3f6f5" : "#fff",
                                   color: requestSent || requestJustSent || requestSending ? G.muted : G.green,
                                   borderRadius: 10,
-                                  padding: "8px 10px",
+                                  padding: "3px 7px",
+                                  width: 130,
+                                  minHeight: 30,
+                                  fontSize: 13,
                                   cursor: requestSent || requestJustSent || requestSending ? "not-allowed" : "pointer",
                                   fontWeight: 700,
-                                  whiteSpace: "nowrap",
+                                  whiteSpace: "normal",
+                                  overflowWrap: "anywhere",
+                                  lineHeight: 1.2,
                                 }}
                               >
-                                {requestJustSent ? "Zahtjev poslat" : requestSent ? "Već imate zahtjev ka ovoj osobi" : requestSending ? "Slanje..." : "Pošalji zahtjev"}
+                                {requestJustSent || requestSent ? "Zahtjev poslat" : requestSending ? "Slanje..." : "Pošalji zahtjev"}
                               </button>
                             ) : (
                               <span style={{ color: G.muted, fontSize: 13 }}>

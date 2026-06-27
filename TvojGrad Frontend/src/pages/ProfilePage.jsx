@@ -1,9 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { G } from "../constants";
 import InboxPanel from "../components/InboxPanel";
 import { API_BASE_URL, absoluteImgSrc, fetchEvents, fetchUserVote, formatDisplayDate, formatDisplayTime, formatEvent, getUserId, uploadProfileImage } from "../api";
 import { Client } from "@stomp/stompjs";
 import { translateText } from "../i18n";
+
+const INTEREST_OPTIONS = ["Muzika", "Sport", "Priroda", "Kultura", "Film", "Edukacija", "Putovanja", "Tehnologija", "Zabava"];
+const INTEREST_KEYWORDS = {
+  Muzika: ["muzika", "koncert", "gitara", "bend", "festival", "jazz", "rok", "rock", "pjevanje"],
+  Sport: ["sport", "fudbal", "kosarka", "košarka", "trening", "teretana", "trcanje", "trčanje"],
+  Priroda: ["priroda", "planin", "kamp", "setnja", "šetnja", "more"],
+  Kultura: ["pozoriste", "pozorište", "izlozba", "izložba", "muzej", "knjig"],
+  Film: ["film", "bioskop", "serij"],
+  Edukacija: ["ucenje", "učenje", "radionic", "kurs", "predavanje"],
+  Putovanja: ["putov", "izlet", "avantur"],
+  Tehnologija: ["tehnolog", "program", "racunar", "računar", "gaming", "igre"],
+  Zabava: ["zabav", "druzen", "družen", "party", "zurke", "žurke"],
+};
 
 const normalizeRole = (role) => {
   if (role === "organizator") return "organizer";
@@ -141,11 +154,54 @@ export default function ProfilePage({
   const [unreadCetIds, setUnreadCetIds] = useState({});
   const [usersById, setUsersById] = useState({});
   const [eventTitlesById, setEventTitlesById] = useState({});
+  const [aboutText, setAboutText] = useState("");
+  const [matchingCity, setMatchingCity] = useState("");
+  const [selectedInterests, setSelectedInterests] = useState([]);
+  const [excludedInterests, setExcludedInterests] = useState([]);
+  const [aiAnalyzing, setAiAnalyzing] = useState(false);
+  const [aiAnalysisError, setAiAnalysisError] = useState("");
+  const lastAnalyzedTextRef = useRef("");
+  const [matchingProfileSaving, setMatchingProfileSaving] = useState(false);
+  const [matchingProfileSaved, setMatchingProfileSaved] = useState(false);
+  const [requestMatches, setRequestMatches] = useState({});
 
   useEffect(() => {
     if (!uid) return;
     loadProfileData();
   }, [uid]);
+
+  useEffect(() => {
+    const savedAbout = user?.O_meni || user?.oMeni || user?.o_meni || "";
+    setAboutText(savedAbout);
+    lastAnalyzedTextRef.current = savedAbout.trim();
+    setMatchingCity(user?.Grad || user?.grad || "");
+    setSelectedInterests(String(user?.Interesovanja || user?.interesovanja || "")
+      .split(",").map((item) => item.trim()).filter(Boolean));
+    setExcludedInterests(String(user?.Neinteresovanja || user?.neinteresovanja || "")
+      .split(",").map((item) => item.trim()).filter(Boolean));
+  }, [uid, user?.O_meni, user?.Interesovanja, user?.Neinteresovanja, user?.Grad]);
+
+  useEffect(() => {
+    const text = aboutText.trim();
+    if (text.length < 5 || text === lastAnalyzedTextRef.current) return undefined;
+    const timeout = window.setTimeout(async () => {
+      setAiAnalyzing(true);
+      setAiAnalysisError("");
+      try {
+        const response = await fetch(`${API_BASE_URL}/matching/analiziraj`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tekst: text }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result?.greska || "AI analiza nije dostupna");
+        setSelectedInterests(result.interesovanja || []);
+        setExcludedInterests(result.neinteresovanja || []);
+        lastAnalyzedTextRef.current = text;
+      } catch (error) {
+        setAiAnalysisError(error.message || "AI analiza nije uspjela");
+      } finally { setAiAnalyzing(false); }
+    }, 1200);
+    return () => window.clearTimeout(timeout);
+  }, [aboutText]);
 
   useEffect(() => {
     if (!uid) return undefined;
@@ -262,6 +318,16 @@ export default function ProfilePage({
       if (!response.ok) return;
       const data = await response.json();
       setDbRequests(newestFirst(data));
+      const receivedSenderIds = [...new Set((data || [])
+        .filter((request) => String(request.PrimioZahtev || request.primioZahtev) === String(uid))
+        .map((request) => getUserId(request.PosloZahtev || request.posloZahtev)).filter(Boolean))];
+      const matchEntries = await Promise.all(receivedSenderIds.map(async (senderId) => {
+        try {
+          const matchResponse = await fetch(`${API_BASE_URL}/matching/${uid}/${senderId}`);
+          return [String(senderId), matchResponse.ok ? await matchResponse.json() : null];
+        } catch { return [String(senderId), null]; }
+      }));
+      setRequestMatches(Object.fromEntries(matchEntries.filter(([, match]) => match)));
       const nextUsers = {};
       (data || []).forEach((request) => {
         const sender = request.PosloZahtev || request.posloZahtev;
@@ -579,6 +645,7 @@ export default function ProfilePage({
   const myPsmPrijave = newestFirst(dbPrijave.filter((prijava) => String(getUserId(prijava.Korisnik || prijava.korisnik)) === String(uid)));
 
   const tabs = [
+    { id: "about", label: "👤 O meni i interesovanja" },
     { id: "favorites", label: `❤️ ${profileText.favorites}`, count: favoriteList.length },
     { id: "inbox", label: `💬 ${profileText.messagesRequests}`, count: totalUnread, badge: totalUnread > 0 },
     { id: "sent-requests", label: `📨 ${profileText.sentRequests}`, count: sentRequests.length },
@@ -697,6 +764,10 @@ export default function ProfilePage({
     const isAccepted = currentStatus.toLowerCase().startsWith("prihva");
     const requestId = request.ID || request.id;
     const deletingRequest = Boolean(deletingRequestIds[requestId]);
+    const requestMatch = mode === "received" ? requestMatches[String(getUserId(displayUser))] : null;
+    const matchScore = requestMatch?.Podudaranje ?? requestMatch?.podudaranje;
+    const matchLabel = requestMatch?.Kategorija_podudaranja || requestMatch?.kategorija_podudaranja;
+    const matchColor = matchScore >= 75 ? "#16784f" : matchScore >= 50 ? "#39721d" : matchScore >= 25 ? "#a16609" : "#9b3c3c";
 
     return (
       <div key={request.ID} className="request-card">
@@ -706,6 +777,7 @@ export default function ProfilePage({
           <div className="request-meta">
             {displayEmail ? `${displayEmail} · ` : ""}{profileText.status}: {translatedStatus}
           </div>
+          {matchScore != null && <div style={{ marginTop: 5, color: matchColor, fontSize: 12 }}><strong>{matchScore}%</strong> · {matchLabel}</div>}
         </div>
         {mode === "received" && isPending && (
           <div className="request-actions">
@@ -796,6 +868,35 @@ export default function ProfilePage({
     }
     return sender || usersById[String(senderId)] || null;
   };
+
+  const toggleInterest = (interest) => {
+    setMatchingProfileSaved(false);
+    setSelectedInterests((current) => current.includes(interest)
+      ? current.filter((item) => item !== interest)
+      : [...current, interest]);
+  };
+
+  const saveMatchingProfile = async () => {
+    if (!uid) return;
+    setMatchingProfileSaving(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/korisnici/${uid}/matching-profil`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ O_meni: aboutText.trim(), Grad: matchingCity.trim(), Interesovanja: selectedInterests.join(","), Neinteresovanja: excludedInterests.join(",") }),
+      });
+      if (!response.ok) throw new Error("Profil nije sačuvan");
+      const updated = await response.json();
+      const merged = { ...user, ...updated };
+      localStorage.setItem("user", JSON.stringify(merged));
+      if (onUserUpdated) onUserUpdated(merged);
+      setMatchingProfileSaved(true);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setMatchingProfileSaving(false);
+    }
+  };
   const activeOtherUser = activeCet ? getOtherUser(activeCet) : null;
   const activeOtherName = activeOtherUser ? userName(activeOtherUser) : "Chat";
   const normalizedChatSearch = chatSearch.trim().toLowerCase();
@@ -839,6 +940,36 @@ export default function ProfilePage({
         </div>
 
         <div>
+          {profileTab === "about" && (
+            <div className="form-card">
+              <h3>👤 O meni i moja interesovanja</h3>
+              <p style={{ color: G.muted, marginTop: 0 }}>Ovi podaci se koriste za kvalitetnije „Pođi sa mnom“ preporuke.</p>
+              <label style={{ display: "block", fontWeight: 700, marginBottom: 7 }}>Grad</label>
+              <input value={matchingCity} onChange={(event) => { setMatchingCity(event.target.value); setMatchingProfileSaved(false); }} placeholder="npr. Podgorica" style={{ width: "100%", boxSizing: "border-box", padding: 12, borderRadius: 10, border: "1px solid #d8e2de", marginBottom: 16 }} />
+              <label style={{ display: "block", fontWeight: 700, marginBottom: 7 }}>O meni</label>
+              <textarea value={aboutText} onChange={(event) => { setAboutText(event.target.value); setMatchingProfileSaved(false); }} placeholder="Napišite nešto o sebi, hobijima i stvarima koje volite..." rows={6} maxLength={1000} style={{ width: "100%", boxSizing: "border-box", padding: 12, borderRadius: 10, border: "1px solid #d8e2de", resize: "vertical" }} />
+              <div style={{ textAlign: "right", color: G.muted, fontSize: 12 }}>{aboutText.length}/1000</div>
+              <div style={{ minHeight: 24, marginTop: 8, fontSize: 13, color: aiAnalysisError ? "#9b3c3c" : G.muted }}>
+                {aiAnalyzing ? "AI analizira opis..." : aiAnalysisError || (lastAnalyzedTextRef.current ? "AI pojmovi su spremni — uklonite netačne prije čuvanja." : "AI analiza počinje nakon unosa opisa.")}
+              </div>
+              <div style={{ marginTop: 18, fontWeight: 700, color: "#16784f" }}>Zanima me</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+                {selectedInterests.length ? selectedInterests.map((interest) => <button key={interest} type="button" onClick={() => { setSelectedInterests((items) => items.filter((item) => item !== interest)); setMatchingProfileSaved(false); }} style={{ border: `1px solid ${G.green}`, background: "#e9f8f2", color: "#16784f", padding: "8px 12px", borderRadius: 18, fontWeight: 700 }}>{interest} ×</button>) : <span style={{ color: G.muted, fontSize: 13 }}>Nema prepoznatih pojmova.</span>}
+              </div>
+              <div style={{ marginTop: 18, fontWeight: 700, color: "#9b3c3c" }}>Ne zanima me</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+                {excludedInterests.length ? excludedInterests.map((interest) => <button key={interest} type="button" onClick={() => { setExcludedInterests((items) => items.filter((item) => item !== interest)); setMatchingProfileSaved(false); }} style={{ border: "1px solid #c65a5a", background: "#fff1f1", color: "#9b3c3c", padding: "8px 12px", borderRadius: 18, fontWeight: 700 }}>{interest} ×</button>) : <span style={{ color: G.muted, fontSize: 13 }}>Nema prepoznatih pojmova.</span>}
+              </div>
+              <div style={{ marginTop: 18, fontWeight: 700 }}>Dodaj interesovanje ručno</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+                {INTEREST_OPTIONS.filter((item) => !selectedInterests.includes(item)).map((interest) => <button key={interest} type="button" onClick={() => toggleInterest(interest)} style={{ border: "1px solid #ccd8d3", background: "#fff", color: G.ink, padding: "7px 11px", borderRadius: 18 }}>+ {interest}</button>)}
+              </div>
+              <button type="button" onClick={saveMatchingProfile} disabled={matchingProfileSaving} className="action-btn action-approve" style={{ marginTop: 22, padding: "11px 18px" }}>
+                {matchingProfileSaving ? "Čuvanje..." : matchingProfileSaved ? "✓ Sačuvano" : "Sačuvaj izmjene"}
+              </button>
+            </div>
+          )}
+
           {profileTab === "favorites" && (
             <div className="form-card">
               <h3>❤️ {profileText.favoriteEvents} ({favoriteList.length})</h3>

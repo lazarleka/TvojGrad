@@ -48,6 +48,12 @@ public class KorisnikController {
         return this.korisnikService.azurirajKorisnika(ID, k);
     }
 
+    @PutMapping(value = "/{ID}/matching-profil")
+    public ResponseEntity<Korisnik> azurirajMatchingProfil(@PathVariable("ID") int ID, @RequestBody Korisnik k) {
+        Korisnik azuriran = this.korisnikService.azurirajMatchingProfil(ID, k);
+        return azuriran != null ? ResponseEntity.ok(azuriran) : ResponseEntity.badRequest().build();
+    }
+
     @PutMapping(value = "/{ID}/odobri-admin")
     public Korisnik odobriAdmina(@PathVariable("ID") int ID) {
         return this.korisnikService.odobriAdmina(ID);

@@ -13,6 +13,10 @@ public class Korisnik {
     private String lozinka;
     private String profilna;
     private String status;
+    private String oMeni;
+    private String interesovanja;
+    private String neinteresovanja;
+    private String grad;
 
     public Korisnik() {}
 
@@ -56,6 +60,18 @@ public class Korisnik {
     @JsonProperty("Status")
     public String getStatus() { return status; }
 
+    @JsonProperty("O_meni")
+    public String getOMeni() { return oMeni; }
+
+    @JsonProperty("Interesovanja")
+    public String getInteresovanja() { return interesovanja; }
+
+    @JsonProperty("Neinteresovanja")
+    public String getNeinteresovanja() { return neinteresovanja; }
+
+    @JsonProperty("Grad")
+    public String getGrad() { return grad; }
+
     // Setere ostavi normalne (Jackson će znati kako da ih uveže)
     @JsonProperty("ID")
     @JsonAlias("id")
@@ -88,4 +104,20 @@ public class Korisnik {
     @JsonProperty("Status")
     @JsonAlias("status")
     public void setStatus(String status) { this.status = status; }
+
+    @JsonProperty("O_meni")
+    @JsonAlias({"oMeni", "o_meni"})
+    public void setOMeni(String oMeni) { this.oMeni = oMeni; }
+
+    @JsonProperty("Interesovanja")
+    @JsonAlias("interesovanja")
+    public void setInteresovanja(String interesovanja) { this.interesovanja = interesovanja; }
+
+    @JsonProperty("Neinteresovanja")
+    @JsonAlias("neinteresovanja")
+    public void setNeinteresovanja(String neinteresovanja) { this.neinteresovanja = neinteresovanja; }
+
+    @JsonProperty("Grad")
+    @JsonAlias("grad")
+    public void setGrad(String grad) { this.grad = grad; }
 }

@@ -1,0 +1,69 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------------< com.example:demo >--------------------------
+[INFO] Building demo 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.0.3:run (default-cli) > test-compile @ demo >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ demo ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ demo ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ demo ---
+[INFO] skip non existing resourceDirectory C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ demo ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< spring-boot:4.0.3:run (default-cli) < test-compile @ demo <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.0.3:run (default-cli) @ demo ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.3)
+
+2026-06-27T00:48:25.335+02:00  INFO 10672 --- [TvojGrad] [           main] c.example.TvojGrad.TvojGradApplication   : Starting TvojGradApplication using Java 21.0.11 with PID 10672 (C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\target\classes started by User in C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend)
+2026-06-27T00:48:25.345+02:00  INFO 10672 --- [TvojGrad] [           main] c.example.TvojGrad.TvojGradApplication   : No active profile set, falling back to 1 default profile: "default"
+2026-06-27T00:48:26.896+02:00  INFO 10672 --- [TvojGrad] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-06-27T00:48:26.924+02:00  INFO 10672 --- [TvojGrad] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-06-27T00:48:26.925+02:00  INFO 10672 --- [TvojGrad] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.18]
+2026-06-27T00:48:27.051+02:00  INFO 10672 --- [TvojGrad] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1611 ms
+2026-06-27T00:48:28.296+02:00  INFO 10672 --- [TvojGrad] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-06-27T00:48:28.299+02:00  INFO 10672 --- [TvojGrad] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@73aeef7d]]
+2026-06-27T00:48:28.302+02:00  INFO 10672 --- [TvojGrad] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-06-27T00:48:28.367+02:00  INFO 10672 --- [TvojGrad] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-06-27T00:48:28.376+02:00  INFO 10672 --- [TvojGrad] [           main] c.example.TvojGrad.TvojGradApplication   : Started TvojGradApplication in 3.769 seconds (process running for 4.42)
+2026-06-27T00:48:28.572+02:00  INFO 10672 --- [TvojGrad] [0.0-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-06-27T00:48:28.574+02:00  INFO 10672 --- [TvojGrad] [0.0-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-06-27T00:48:28.581+02:00  INFO 10672 --- [TvojGrad] [0.0-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 3 ms
+2026-06-27T00:49:28.305+02:00  INFO 10672 --- [TvojGrad] [MessageBroker-5] o.s.w.s.c.WebSocketMessageBrokerStats    : WebSocketSession[11 current WS(11)-HttpStream(0)-HttpPoll(0), 11 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(11)-CONNECTED(11)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 16, active threads = 0, queued tasks = 0, completed tasks = 66], outboundChannel[pool size = 11, active threads = 0, queued tasks = 0, completed tasks = 11], sockJsScheduler[pool size = 8, active threads = 1, queued tasks = 12, completed tasks = 21]
+2026-06-27T03:55:52.918+02:00  INFO 10672 --- [TvojGrad] [MessageBroker-4] o.s.w.s.c.WebSocketMessageBrokerStats    : WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 75 total, 0 closed abnormally (0 connect failure, 0 send limit, 1 transport error)], stompSubProtocol[processed CONNECT(75)-CONNECTED(75)-DISCONNECT(2)], stompBrokerRelay[null], inboundChannel[pool size = 3, active threads = 0, queued tasks = 0, completed tasks = 696], outboundChannel[pool size = 1, active threads = 0, queued tasks = 0, completed tasks = 187], sockJsScheduler[pool size = 8, active threads = 2, queued tasks = 1, completed tasks = 861]
+2026-06-27T15:24:13.360+02:00  INFO 10672 --- [TvojGrad] [MessageBroker-5] o.s.w.s.c.WebSocketMessageBrokerStats    : WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 75 total, 0 closed abnormally (0 connect failure, 0 send limit, 1 transport error)], stompSubProtocol[processed CONNECT(75)-CONNECTED(75)-DISCONNECT(2)], stompBrokerRelay[null], inboundChannel[pool size = 3, active threads = 0, queued tasks = 0, completed tasks = 696], outboundChannel[pool size = 1, active threads = 0, queued tasks = 0, completed tasks = 187], sockJsScheduler[pool size = 8, active threads = 2, queued tasks = 0, completed tasks = 2745]
+2026-06-27T15:46:50.208+02:00  WARN 10672 --- [TvojGrad] [0.0-8080-exec-8] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.multipart.MaxUploadSizeExceededException: Maximum upload size exceeded]
+2026-06-27T15:46:50.215+02:00  WARN 10672 --- [TvojGrad] [0.0-8080-exec-8] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.multipart.MaxUploadSizeExceededException: Maximum upload size exceeded]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  14:59 h
+[INFO] Finished at: 2026-06-27T15:47:20+02:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:4.0.3:run (default-cli) on project demo: Process terminated with exit code: -1 -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException

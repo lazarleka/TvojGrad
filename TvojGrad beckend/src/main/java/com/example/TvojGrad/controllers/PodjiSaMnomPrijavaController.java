@@ -14,9 +14,11 @@ import java.util.List;
 public class PodjiSaMnomPrijavaController {
 
     private final PodjiSaMnomPrijavaService prijavaService;
+    private final com.example.TvojGrad.services.MatchingService matchingService;
 
-    public PodjiSaMnomPrijavaController(PodjiSaMnomPrijavaService _prijavaService) {
+    public PodjiSaMnomPrijavaController(PodjiSaMnomPrijavaService _prijavaService, com.example.TvojGrad.services.MatchingService matchingService) {
         this.prijavaService = _prijavaService;
+        this.matchingService = matchingService;
     }
 
     @GetMapping
@@ -32,8 +34,11 @@ public class PodjiSaMnomPrijavaController {
 
     // GET /prijave/objava/5 -> Vraca sve prijave za objavu sa ID-em 5
     @GetMapping(value = "/objava/{ObjavaID}")
-    public ResponseEntity<List<PodjiSaMnomPrijava>> getPrijaveByObjava(@PathVariable("ObjavaID") int ObjavaID) {
-        return ResponseEntity.ok(this.prijavaService.getPrijaveByObjava(ObjavaID));
+    public ResponseEntity<List<PodjiSaMnomPrijava>> getPrijaveByObjava(
+            @PathVariable("ObjavaID") int ObjavaID,
+            @RequestParam(value = "korisnikId", required = false) Integer korisnikId) {
+        List<PodjiSaMnomPrijava> prijave = this.prijavaService.getPrijaveByObjava(ObjavaID);
+        return ResponseEntity.ok(this.matchingService.dodajPodudaranja(prijave, korisnikId));
     }
 
     @PostMapping

@@ -23,6 +23,10 @@ public class PodjiSaMnomPrijavaRepositories {
                 rs.getString("Lozinka"),
                 rs.getString("Profilna")
         );
+        k.setOMeni(rs.getString("O_meni"));
+        k.setInteresovanja(rs.getString("Interesovanja"));
+        k.setNeinteresovanja(rs.getString("Neinteresovanja"));
+        k.setGrad(rs.getString("Korisnik_Grad"));
 
         return new PodjiSaMnomPrijava(
                 rs.getInt("p_id"),
@@ -37,7 +41,8 @@ public class PodjiSaMnomPrijavaRepositories {
     // Bazni SQL upit koji radi JOIN da povuče i korisnika odmah
     private final String BASE_SELECT =
             "SELECT p.ID as p_id, p.Tekst, p.Status, p.Objava_ID, o.Naslov AS Objava_Naslov, " +
-                    "k.ID as k_id, k.Ime, k.Prezime, k.Email, k.Tip, k.Lozinka, k.Profilna " +
+                    "k.ID as k_id, k.Ime, k.Prezime, k.Email, k.Tip, k.Lozinka, k.Profilna, " +
+                    "k.O_meni, k.Interesovanja, k.Neinteresovanja, k.Grad AS Korisnik_Grad " +
                     "FROM podji_sa_mnom_prijava p " +
                     "INNER JOIN korisnik k ON p.Korisnik_ID = k.ID " +
                     "LEFT JOIN objava o ON p.Objava_ID = o.ID";

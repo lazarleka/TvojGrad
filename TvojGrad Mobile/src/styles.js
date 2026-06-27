@@ -436,7 +436,7 @@ export const css = `
     .psm-table td::before{content:attr(data-label);display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:${G.muted};margin-bottom:3px}
     .psm-table td:first-child{font-size:14px}
     .psm-table td:last-child{text-align:left;padding-top:10px}
-    .psm-table td:last-child button{width:100%;justify-content:center}
+    .psm-table td:last-child button{display:flex;width:100%!important;max-width:none!important;box-sizing:border-box;justify-content:center}
     .profile-grid{gap:1rem}
     .profile-card{padding:1rem}
     .profile-nav{grid-template-columns:1fr}

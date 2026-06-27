@@ -3,6 +3,7 @@ C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\examp
 C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\example\TvojGrad\controllers\DogadjajController.java
 C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\example\TvojGrad\controllers\GradController.java
 C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\example\TvojGrad\controllers\KorisnikController.java
+C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\example\TvojGrad\controllers\MatchingController.java
 C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\example\TvojGrad\controllers\OmiljeniDogadjajiController.java
 C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\example\TvojGrad\controllers\PodjiSaMnomCetController.java
 C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\example\TvojGrad\controllers\PodjiSaMnomPrijavaController.java
@@ -34,8 +35,10 @@ C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\examp
 C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\example\TvojGrad\repositories\TipRepositories.java
 C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\example\TvojGrad\services\AuthService.java
 C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\example\TvojGrad\services\DogadjajService.java
+C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\example\TvojGrad\services\GeminiInterestService.java
 C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\example\TvojGrad\services\GradService.java
 C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\example\TvojGrad\services\KorisnikService.java
+C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\example\TvojGrad\services\MatchingService.java
 C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\example\TvojGrad\services\OmiljeniDogadjajService.java
 C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\example\TvojGrad\services\PodjiSaMnomCetService.java
 C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\main\java\com\example\TvojGrad\services\PodjiSaMnomPrijavaService.java

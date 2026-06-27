@@ -30,6 +30,10 @@ public class DBUtil {
             executeQuietly(conn, "UPDATE korisnik SET Status='odbijen_organizator' WHERE Status='odbijen_admin'");
             executeQuietly(conn, "ALTER TABLE korisnik MODIFY COLUMN Status ENUM('aktivan','na_cekanju_organizator','odbijen_organizator') NOT NULL DEFAULT 'aktivan'");
             executeQuietly(conn, "ALTER TABLE korisnik MODIFY Profilna TEXT NULL");
+            addColumnIfMissing(conn, "korisnik", "O_meni", "ALTER TABLE korisnik ADD COLUMN O_meni TEXT NULL");
+            addColumnIfMissing(conn, "korisnik", "Interesovanja", "ALTER TABLE korisnik ADD COLUMN Interesovanja TEXT NULL");
+            addColumnIfMissing(conn, "korisnik", "Neinteresovanja", "ALTER TABLE korisnik ADD COLUMN Neinteresovanja TEXT NULL");
+            addColumnIfMissing(conn, "korisnik", "Grad", "ALTER TABLE korisnik ADD COLUMN Grad varchar(100) NULL");
             addColumnIfMissing(conn, "objava", "Cijena",
                     "ALTER TABLE objava ADD COLUMN Cijena DECIMAL(10,2) NULL");
             addColumnIfMissing(conn, "objava", "Latitude",
@@ -65,9 +69,25 @@ public class DBUtil {
     }
 
     private static void alignObjavaTipForeignKey(Connection conn) {
-        executeQuietly(conn, "ALTER TABLE objava DROP FOREIGN KEY objava_ibfk_4");
+        dropForeignKeysForColumn(conn, "objava", "Tip_dogadjaja");
         executeQuietly(conn, "ALTER TABLE tip MODIFY COLUMN Naziv varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL");
         executeQuietly(conn, "ALTER TABLE objava MODIFY COLUMN Tip_dogadjaja varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL");
+        executeQuietly(conn, "INSERT IGNORE INTO tip (Naziv) SELECT DISTINCT Tip_dogadjaja FROM objava WHERE Tip_dogadjaja IS NOT NULL AND TRIM(Tip_dogadjaja) <> ''");
         executeQuietly(conn, "ALTER TABLE objava ADD CONSTRAINT objava_ibfk_4 FOREIGN KEY (Tip_dogadjaja) REFERENCES tip (Naziv)");
+    }
+
+    private static void dropForeignKeysForColumn(Connection conn, String tableName, String columnName) {
+        String sql = "SELECT DISTINCT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE "
+                + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '" + tableName + "' "
+                + "AND COLUMN_NAME = '" + columnName + "' AND REFERENCED_TABLE_NAME IS NOT NULL";
+        try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(sql)) {
+            java.util.List<String> constraints = new java.util.ArrayList<>();
+            while (rs.next()) constraints.add(rs.getString(1));
+            for (String constraint : constraints) {
+                executeQuietly(conn, "ALTER TABLE " + tableName + " DROP FOREIGN KEY `" + constraint.replace("`", "``") + "`");
+            }
+        } catch (Exception e) {
+            System.out.println(e);
+        }
     }
 }
