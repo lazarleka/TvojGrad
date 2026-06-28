@@ -2,6 +2,14 @@ import { useEffect, useState } from "react";
 import { fetchEvents, formatDisplayDate, getEventAddress } from "../api";
 import { translateText } from "../i18n";
 
+const eventDateTime = (event) => {
+  const date = String(event?.date || event?.Datum || "").slice(0, 10);
+  if (!date) return 0;
+  const time = String(event?.time || event?.Vreme || "23:59").slice(0, 5);
+  const value = new Date(`${date}T${time || "23:59"}:00`).getTime();
+  return Number.isFinite(value) ? value : 0;
+};
+
 export default function PopularPage({ navigate, t = (key) => key, language = "SRB" }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -9,7 +17,10 @@ export default function PopularPage({ navigate, t = (key) => key, language = "SR
   useEffect(() => {
     fetchEvents()
       .then((data) => {
-        setEvents([...data].sort((a, b) => (b.votes?.up || 0) - (a.votes?.up || 0)));
+        const now = Date.now();
+        setEvents([...data]
+          .filter((event) => eventDateTime(event) >= now)
+          .sort((a, b) => (b.votes?.up || 0) - (a.votes?.up || 0)));
       })
       .catch((error) => console.error("Greška pri učitavanju popularnih:", error))
       .finally(() => setLoading(false));

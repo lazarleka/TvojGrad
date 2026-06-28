@@ -397,7 +397,10 @@ export const uploadProfileImage = async (userId, file) => {
     method: "POST",
     body: formData,
   });
-  if (!response.ok) throw new Error("Profilna slika nije sačuvana");
+  if (!response.ok) {
+    const message = await response.text().catch(() => "");
+    throw new Error(message || "Profilna slika nije sačuvana");
+  }
   return response.json();
 };
 

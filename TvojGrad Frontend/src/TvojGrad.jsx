@@ -498,7 +498,7 @@ export default function TvojGrad() {
     const currentEvents = await fetchAdminEvents().catch(() => events);
     const slotExists = currentEvents.some((event) => eventSlotKey(event) === newSlotKey);
     if (slotExists) {
-      toast("Dogadjaj sa istim datumom, vremenom i mjestom vec postoji");
+      toast("Događaj sa istim datumom, vremenom i mjestom već postoji.", { position: "top" });
       return false;
     }
 
@@ -512,7 +512,8 @@ export default function TvojGrad() {
       return true;
     } catch (err) {
       console.error(err);
-      toast(err.message || "Greska u unosu podataka");
+      const duplicateSlot = String(err.message || "").toLowerCase().includes("istim datumom");
+      toast(duplicateSlot ? "Događaj sa istim datumom, vremenom i mjestom već postoji." : (err.message || "Greška pri unosu podataka."), duplicateSlot ? { position: "top" } : undefined);
       return false;
     }
   };
@@ -908,8 +909,13 @@ export default function TvojGrad() {
           <strong>TvojGrad</strong> - Centralizovana platforma za događaje u gradu
         </footer>
       </div>
+      <div className="toast-wrap toast-wrap-top">
+        {toasts.filter((t) => t.position === "top").map((t) => (
+          <div key={t.id} className="toast">{t.msg}</div>
+        ))}
+      </div>
       <div className="toast-wrap">
-        {toasts.map((t) => (
+        {toasts.filter((t) => t.position !== "top").map((t) => (
           <div key={t.id} className="toast">
             {t.msg}
           </div>

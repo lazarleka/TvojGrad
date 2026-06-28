@@ -40,6 +40,7 @@ com\example\TvojGrad\controllers\UploadController.class
 com\example\TvojGrad\controllers\PorukaCetaController.class
 com\example\TvojGrad\controllers\AuthController.class
 com\example\TvojGrad\services\PodjiSaMnomZahtevService.class
+com\example\TvojGrad\services\GeminiInterestService$2.class
 com\TvojGrad\TvojGrad\TvojGradApplication.class
 com\example\TvojGrad\controllers\KorisnikController.class
 com\example\TvojGrad\controllers\PodjiSaMnomPrijavaController.class

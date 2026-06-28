@@ -153,17 +153,17 @@ export default function OrganizerPage({ user, events, addEvent, updateEvent, del
               Ova opcija je priprema za plaćanje i za sada samo označava objavu kao promovisanu.
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: "0.75rem" }}>
             <button
               className="btn-primary"
               onClick={submit}
               disabled={!form.title || !form.date || !form.location}
-              style={{ opacity: (!form.title || !form.date || !form.location) ? 0.5 : 1 }}
+              style={{ opacity: (!form.title || !form.date || !form.location) ? 0.5 : 1, flex: "1 1 180px", width: "auto", minHeight: 40, marginTop: 0 }}
             >
               {editingEvent ? "Sačuvaj izmjene" : "Dodaj događaj"}
             </button>
             {editingEvent && (
-              <button className="action-btn" onClick={cancelEdit} style={{ padding: "10px 16px" }}>
+              <button className="action-btn" onClick={cancelEdit} style={{ flex: "1 1 180px", minHeight: 40, padding: "10px 20px", borderRadius: 10, fontSize: 14 }}>
                 Odustani
               </button>
             )}

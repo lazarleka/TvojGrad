@@ -296,7 +296,8 @@ export const css = `
   .popular-votes{font-size:14px;font-weight:600;color:${G.green};background:${G.greenLight};padding:5px 12px;border-radius:10px}
 
   /* TOAST */
-  .toast-wrap{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+  .toast-wrap{position:fixed;bottom:1.5rem;left:50%;right:auto;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;max-width:calc(100vw - 2rem)}
+  .toast-wrap-top{top:1.5rem;bottom:auto}
   .toast{background:${G.greenDark};color:#fff;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,0.15);animation:toastIn 0.2s ease}
   @keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
@@ -400,7 +401,8 @@ export const css = `
     .my-event-item,.request-card{align-items:flex-start;flex-direction:column}
     .my-event-actions,.request-actions{align-items:stretch;width:100%;flex-direction:row;flex-wrap:wrap}
     .card-footer{gap:0.75rem;align-items:flex-start;flex-direction:column}
-    .toast-wrap{left:1rem;right:1rem;bottom:1rem}
+    .toast-wrap{left:50%;right:auto;bottom:1rem;width:calc(100vw - 2rem)}
+    .toast-wrap-top{top:1rem;bottom:auto}
   }
 
   @media (max-width: 480px){

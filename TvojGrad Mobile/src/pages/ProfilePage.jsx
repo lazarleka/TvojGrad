@@ -4,8 +4,29 @@ import InboxPanel from "../components/InboxPanel";
 import { API_BASE_URL, absoluteImgSrc, fetchEvents, fetchUserVote, formatDisplayDate, formatDisplayTime, formatEvent, getApiBaseUrl, getUserId, uploadProfileImage } from "../api";
 import { Client } from "@stomp/stompjs";
 import { translateText } from "../i18n";
+import UserHoverCard from "../components/UserHoverCard";
 
 const INTEREST_OPTIONS = ["Muzika", "Sport", "Priroda", "Kultura", "Film", "Edukacija", "Putovanja", "Tehnologija", "Zabava"];
+const MONTENEGRO_CITIES = ["Andrijevica", "Bar", "Berane", "Bijelo Polje", "Budva", "Cetinje", "Danilovgrad", "Gusinje", "Herceg Novi", "Kolašin", "Kotor", "Mojkovac", "Nikšić", "Petnjica", "Plav", "Pljevlja", "Plužine", "Podgorica", "Rožaje", "Šavnik", "Tivat", "Tuzi", "Ulcinj", "Zeta", "Žabljak"];
+const prepareProfileImage = async (file) => {
+  if (!file) return null;
+  if (file.size > 15 * 1024 * 1024) throw new Error("Slika je prevelika. Maksimalna veličina je 15 MB.");
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.88));
+    if (!blob) throw new Error("Fotografija nije obrađena");
+    return new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "profilna"}.jpg`, { type: "image/jpeg" });
+  } catch {
+    if (["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"].includes(file.type)) return file;
+    throw new Error("Ovaj format nije podržan. Za HEIC/HEIF izaberite JPG, PNG ili uključite 'Most Compatible' format kamere.");
+  }
+};
 const INTEREST_KEYWORDS = {
   Muzika: ["muzika", "koncert", "gitara", "bend", "festival", "jazz", "rok", "rock", "pjevanje"],
   Sport: ["sport", "fudbal", "kosarka", "košarka", "trening", "teretana", "trcanje", "trčanje"],
@@ -147,6 +168,8 @@ export default function ProfilePage({
   const [matchingProfileSaving, setMatchingProfileSaving] = useState(false);
   const [matchingProfileSaved, setMatchingProfileSaved] = useState(false);
   const [requestMatches, setRequestMatches] = useState({});
+  const [profileImageSaving, setProfileImageSaving] = useState(false);
+  const [profileImageError, setProfileImageError] = useState("");
   const backendMsgsRef = useRef(null);
 
   const appendChatMessage = (cetId, message) => {
@@ -278,7 +301,20 @@ export default function ProfilePage({
   }, [dbPrijave, events, eventTitlesById]);
 
   const loadProfileData = async () => {
-    await Promise.all([loadFavorites(), loadVotes(), loadRequests(), loadCets(), loadPrijave()]);
+    await Promise.all([loadCurrentUser(), loadFavorites(), loadVotes(), loadRequests(), loadCets(), loadPrijave()]);
+  };
+
+  const loadCurrentUser = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/korisnici/${uid}`);
+      if (!response.ok) return;
+      const freshUser = await response.json();
+      const merged = { ...user, ...freshUser };
+      localStorage.setItem("user", JSON.stringify(merged));
+      if (onUserUpdated) onUserUpdated(merged);
+    } catch {
+      // Profil ostaje upotrebljiv sa posljednjim lokalno sačuvanim podacima.
+    }
   };
 
   const loadFavorites = async () => {
@@ -561,6 +597,15 @@ export default function ProfilePage({
     setProfileTab("inbox");
     if (statusLabel(targetRequest.status).toLowerCase().startsWith("prihva")) {
       void openChatForRequest(targetRequest);
+    } else {
+      window.setTimeout(() => {
+        const requestCard = document.querySelector(`[data-request-id="${requestedRequestId}"]`);
+        requestCard?.scrollIntoView({ behavior: "smooth", block: "center" });
+        requestCard?.animate(
+          [{ boxShadow: "0 0 0 3px rgba(22, 120, 79, .35)" }, { boxShadow: "none" }],
+          { duration: 1800, easing: "ease-out" }
+        );
+      }, 120);
     }
     localStorage.removeItem(storageKey);
   }, [uid, dbRequests, setProfileTab]);
@@ -674,13 +719,19 @@ export default function ProfilePage({
 
   const handleProfileImage = async (file) => {
     if (!file || !uid) return;
+    setProfileImageSaving(true);
+    setProfileImageError("");
     try {
-      const updated = await uploadProfileImage(uid, file);
+      const prepared = await prepareProfileImage(file);
+      const updated = await uploadProfileImage(uid, prepared);
       const merged = { ...user, ...updated };
       localStorage.setItem("user", JSON.stringify(merged));
       if (onUserUpdated) onUserUpdated(merged);
     } catch (err) {
       console.error(err);
+      setProfileImageError(err.message || "Profilna slika nije sačuvana.");
+    } finally {
+      setProfileImageSaving(false);
     }
   };
 
@@ -780,10 +831,10 @@ export default function ProfilePage({
     const matchColor = matchScore >= 75 ? "#16784f" : matchScore >= 50 ? "#39721d" : matchScore >= 25 ? "#a16609" : "#9b3c3c";
 
     return (
-      <div key={request.ID} className="request-card">
+      <div key={request.ID} className="request-card" data-request-id={requestId}>
         {avatarFor(displayUser, displayName)}
         <div className="request-info">
-          <div className="request-name">{displayName}</div>
+          <div className="request-name"><UserHoverCard user={displayUser}>{displayName}</UserHoverCard></div>
           <div className="request-meta">
             {displayEmail ? `${displayEmail} · ` : ""}Status: {currentStatus}
           </div>
@@ -939,9 +990,10 @@ export default function ProfilePage({
               {profileImage ? <img src={profileImage} alt={name} /> : initialsFor(name)}
             </div>
             <label className="profile-photo-btn">
-              Promijeni sliku
-              <input type="file" accept="image/*" onChange={(ev) => handleProfileImage(ev.target.files?.[0])} />
+              {profileImageSaving ? "Čuvanje..." : "Promijeni sliku"}
+              <input type="file" accept="image/*,.heic,.heif" disabled={profileImageSaving} onChange={(ev) => { const file = ev.target.files?.[0]; ev.target.value = ""; handleProfileImage(file); }} />
             </label>
+            {profileImageError && <div style={{ color: G.danger, fontSize: 11, marginTop: 7, textAlign: "center" }}>{profileImageError}</div>}
             <div className="profile-name">{name}</div>
             <div className="profile-email">{email}</div>
             <span className={`role-badge ${roleClasses[role]}`}>{roleLabels[role]}</span>
@@ -967,13 +1019,16 @@ export default function ProfilePage({
               <h3>👤 O meni i moja interesovanja</h3>
               <p style={{ color: G.muted, marginTop: 0 }}>Ovi podaci se koriste za kvalitetnije „Pođi sa mnom“ preporuke.</p>
               <label style={{ display: "block", fontWeight: 700, marginBottom: 7 }}>Grad</label>
-              <input value={matchingCity} onChange={(event) => { setMatchingCity(event.target.value); setMatchingProfileSaved(false); }} placeholder="npr. Podgorica" style={{ width: "100%", boxSizing: "border-box", padding: 12, borderRadius: 10, border: "1px solid #d8e2de", marginBottom: 16 }} />
+              <select value={matchingCity} onChange={(event) => { setMatchingCity(event.target.value); setMatchingProfileSaved(false); }} style={{ width: "100%", boxSizing: "border-box", padding: 12, borderRadius: 10, border: "1px solid #d8e2de", marginBottom: 16, background: "#fff", color: matchingCity ? G.ink : G.muted }}>
+                <option value="">Izaberite grad</option>
+                {MONTENEGRO_CITIES.map((city) => <option key={city} value={city}>{city}</option>)}
+              </select>
               <label style={{ display: "block", fontWeight: 700, marginBottom: 7 }}>O meni</label>
               <textarea value={aboutText} onChange={(event) => { setAboutText(event.target.value); setMatchingProfileSaved(false); }} placeholder="Napišite nešto o sebi, hobijima i stvarima koje volite..." rows={6} maxLength={1000} style={{ width: "100%", boxSizing: "border-box", padding: 12, borderRadius: 10, border: "1px solid #d8e2de", resize: "vertical" }} />
               <div style={{ textAlign: "right", color: G.muted, fontSize: 12 }}>{aboutText.length}/1000</div>
-              <div style={{ minHeight: 24, marginTop: 8, fontSize: 13, color: aiAnalysisError ? "#9b3c3c" : G.muted }}>
-                {aiAnalyzing ? "AI analizira opis..." : aiAnalysisError || (lastAnalyzedTextRef.current ? "AI pojmovi su spremni — uklonite netačne prije čuvanja." : "AI analiza počinje nakon unosa opisa.")}
-              </div>
+              {(aiAnalyzing || aiAnalysisError) && <div style={{ minHeight: 24, marginTop: 8, fontSize: 13, color: aiAnalysisError ? "#9b3c3c" : G.muted }}>
+                {aiAnalyzing ? "AI analizira opis..." : aiAnalysisError}
+              </div>}
               <div style={{ marginTop: 18, fontWeight: 700, color: "#16784f" }}>Zanima me</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
                 {selectedInterests.length ? selectedInterests.map((interest) => <button key={interest} type="button" onClick={() => { setSelectedInterests((items) => items.filter((item) => item !== interest)); setMatchingProfileSaved(false); }} style={{ border: `1px solid ${G.green}`, background: "#e9f8f2", color: "#16784f", padding: "8px 12px", borderRadius: 18, fontWeight: 700 }}>{interest} ×</button>) : <span style={{ color: G.muted, fontSize: 13 }}>Nema prepoznatih pojmova.</span>}
@@ -1044,39 +1099,41 @@ export default function ProfilePage({
                       onChange={(ev) => setChatSearch(ev.target.value)}
                       placeholder="Pretrazi osobe"
                     />
-                    {visibleAcceptedCets.map((cet) => {
-                      const otherUser = getOtherUser(cet);
-                      const otherName = otherUser ? userName(otherUser) : "Korisnik";
-                      const otherEmail = otherUser?.Email || otherUser?.email || "";
-                      const isUnread = Boolean(unreadCetIds[cet.ID] || externalUnreadCetIds[cet.ID]);
-                      return (
-                        <div
-                          key={cet.ID}
-                          className={`inbox-thread${String(activeCetId) === String(cet.ID) ? " active-thread" : ""}${isUnread ? " unread-thread" : ""}`}
-                          onClick={() => {
-                            setActiveCetId(cet.ID);
-                            setUnreadCetIds((prev) => {
-                              const next = { ...prev };
-                              delete next[cet.ID];
-                              return next;
-                            });
-                            if (onMarkChatRead) {
-                              onMarkChatRead(cet.ID, latestMessageIdForCet(cet.ID));
-                            }
-                          }}
-                        >
-                          {avatarFor(otherUser, otherName)}
-                          <div className="inbox-thread-info">
-                            <div className="inbox-thread-name">{otherName}</div>
-                            <div className="inbox-thread-preview">{isUnread ? "Nova poruka" : (otherEmail || "Chat je aktivan")}</div>
+                    <div className="inbox-thread-list">
+                      {visibleAcceptedCets.map((cet) => {
+                        const otherUser = getOtherUser(cet);
+                        const otherName = otherUser ? userName(otherUser) : "Korisnik";
+                        const otherEmail = otherUser?.Email || otherUser?.email || "";
+                        const isUnread = Boolean(unreadCetIds[cet.ID] || externalUnreadCetIds[cet.ID]);
+                        return (
+                          <div
+                            key={cet.ID}
+                            className={`inbox-thread${String(activeCetId) === String(cet.ID) ? " active-thread" : ""}${isUnread ? " unread-thread" : ""}`}
+                            onClick={() => {
+                              setActiveCetId(cet.ID);
+                              setUnreadCetIds((prev) => {
+                                const next = { ...prev };
+                                delete next[cet.ID];
+                                return next;
+                              });
+                              if (onMarkChatRead) {
+                                onMarkChatRead(cet.ID, latestMessageIdForCet(cet.ID));
+                              }
+                            }}
+                          >
+                            {avatarFor(otherUser, otherName)}
+                            <div className="inbox-thread-info">
+                              <div className="inbox-thread-name">{otherName}</div>
+                              <div className="inbox-thread-preview">{isUnread ? "Nova poruka" : (otherEmail || "Chat je aktivan")}</div>
+                            </div>
+                            {isUnread && <div className="inbox-unread" />}
                           </div>
-                          {isUnread && <div className="inbox-unread" />}
-                        </div>
-                      );
-                    })}
-                    {visibleAcceptedCets.length === 0 && (
-                      <div className="inbox-empty-list">Nema razgovora za ovu pretragu.</div>
-                    )}
+                        );
+                      })}
+                      {visibleAcceptedCets.length === 0 && (
+                        <div className="inbox-empty-list">Nema razgovora za ovu pretragu.</div>
+                      )}
+                    </div>
                   </div>
                   <div className="inbox-main">
                     {activeCet ? (

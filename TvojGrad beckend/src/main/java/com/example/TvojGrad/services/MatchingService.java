@@ -71,39 +71,60 @@ public class MatchingService {
         String viewerCity = normalize(viewer.getGrad());
         String candidateCity = normalize(candidate.getGrad());
         if (!viewerCity.isEmpty() && viewerCity.equals(candidateCity)) {
-            score += 15;
+            score += 10;
             reasons.add("Isti grad: " + candidate.getGrad());
         }
 
         Set<String> viewerInterests = interests(viewer.getInteresovanja());
         Set<String> candidateInterests = interests(candidate.getInteresovanja());
+        int interestScore = 0;
         Set<String> commonInterests = intersectionNormalized(viewerInterests, candidateInterests);
         Set<String> allInterests = union(viewerInterests, candidateInterests);
         long distinctInterestCount = allInterests.stream().map(this::normalize).distinct().count();
-        if (distinctInterestCount > 0) {
-            score += (int) Math.round(55.0 * commonInterests.size() / distinctInterestCount);
+        long viewerInterestCount = viewerInterests.stream().map(this::normalize).distinct().count();
+        long candidateInterestCount = candidateInterests.stream().map(this::normalize).distinct().count();
+        long smallerInterestCount = Math.min(viewerInterestCount, candidateInterestCount);
+        if (distinctInterestCount > 0 && smallerInterestCount > 0) {
+            double smallerListCoverage = (double) commonInterests.size() / smallerInterestCount;
+            double jaccardSimilarity = (double) commonInterests.size() / distinctInterestCount;
+            int sharedCountBonus = Math.min(10, commonInterests.size() * 2);
+            interestScore += (int) Math.round((45.0 * smallerListCoverage) + (20.0 * jaccardSimilarity) + sharedCountBonus);
         }
         if (!commonInterests.isEmpty()) {
             reasons.add("Zajednička interesovanja: " + String.join(", ", commonInterests));
         }
 
+        Set<String> relatedGroups = intersection(interestGroups(viewerInterests), interestGroups(candidateInterests));
+        if (commonInterests.isEmpty() && !relatedGroups.isEmpty()) {
+            interestScore += Math.min(6, relatedGroups.size() * 3);
+            reasons.add("Srodna interesovanja: " + relatedGroups.stream().map(this::groupLabel).collect(Collectors.joining(", ")));
+        }
+
         Set<String> conflicts = union(
                 intersectionNormalized(viewerInterests, interests(candidate.getNeinteresovanja())),
                 intersectionNormalized(candidateInterests, interests(viewer.getNeinteresovanja())));
+        Set<String> commonDislikes = intersectionNormalized(
+                interests(viewer.getNeinteresovanja()), interests(candidate.getNeinteresovanja()));
+        if (!commonDislikes.isEmpty()) {
+            interestScore += Math.min(3, commonDislikes.size());
+            reasons.add("Slicne preference: oboje ne vole " + String.join(", ", commonDislikes));
+        }
         Set<Integer> commonFavorites = intersection(viewerFavorites, candidateFavorites);
         Set<Integer> allFavorites = union(viewerFavorites, candidateFavorites);
         if (!allFavorites.isEmpty()) {
-            score += (int) Math.round(30.0 * commonFavorites.size() / allFavorites.size());
+            score += (int) Math.round(15.0 * commonFavorites.size() / allFavorites.size());
         }
         if (!commonFavorites.isEmpty()) {
             reasons.add("Zajedničkih omiljenih događaja: " + commonFavorites.size());
         }
+        score += Math.min(75, interestScore);
         if (!conflicts.isEmpty()) {
-            int penalty = conflicts.size() * 15;
+            int penalty = conflicts.size() * 10;
             score = Math.max(0, score - penalty);
             reasons.add("Suprotna interesovanja: " + String.join(", ", conflicts) + " (-" + penalty + "%)");
         }
         if (reasons.isEmpty()) reasons.add("Još nema dovoljno zajedničkih podataka");
+        score = Math.min(100, score);
         return new Match(score, label(score), reasons);
     }
 
@@ -133,12 +154,108 @@ public class MatchingService {
         String normalized = java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "").trim().toLowerCase(Locale.ROOT);
         return switch (normalized) {
-            case "nogomet", "football", "soccer" -> "fudbal";
-            case "basket", "basketball" -> "kosarka";
+            case "nogomet", "football", "soccer", "fudbala", "lopta" -> "fudbal";
+            case "basket", "basketball", "basketbal", "kosarku", "kosarke" -> "kosarka";
+            case "tennis" -> "tenis";
+            case "volleyball" -> "odbojka";
+            case "handball" -> "rukomet";
+            case "trcim", "jogging", "running", "run" -> "trcanje";
+            case "gym", "fitness", "fitnes", "vjezbanje", "vezbanje", "workout" -> "teretana";
+            case "bicikl", "bajs", "bike", "cycling" -> "biciklizam";
+            case "hiking", "hajking" -> "planinarenje";
+            case "skiing", "ski" -> "skijanje";
+            case "music", "pjesme", "pesme" -> "muzika";
+            case "rap", "rap muzika", "rep" -> "rep muzika";
+            case "hiphop", "hip-hop" -> "hip hop";
             case "rock", "rock muzika", "rok" -> "rok muzika";
-            case "filmovi" -> "film";
+            case "pop muzika" -> "pop";
+            case "narodna", "narodna muzika", "folk" -> "folk muzika";
+            case "electronic", "edm", "tehno", "techno", "house" -> "elektronska muzika";
+            case "jazz", "dzez" -> "dzez";
+            case "filmovi", "bioskop" -> "film";
             case "serije" -> "serija";
             case "gaming", "video igrice" -> "video igre";
+            case "crvenu zvezdu", "zvezda", "zvezdu", "red star" -> "crvena zvezda";
+            case "mancester junajted", "manchester junajted", "mancester united",
+                    "manchester united", "man utd", "man united", "mancester utd", "manchester utd" -> "mancester junajted";
+            case "mancester siti", "manchester siti", "mancester city", "manchester city",
+                    "man city", "man siti" -> "mancester siti";
+            case "liverpul" -> "liverpool";
+            case "setam" -> "setnja";
+            case "putovanje", "putujem" -> "putovanja";
+            case "adventure" -> "avantura";
+            case "art", "umetnost" -> "umjetnost";
+            case "slikanje", "photography" -> "fotografija";
+            case "dance", "dancing" -> "ples";
+            case "course", "kurs", "seminar" -> "edukacija";
+            case "tech", "technology" -> "tehnologija";
+            case "coding", "kodiranje", "software", "softver" -> "programiranje";
+            case "racunari", "kompjuteri", "computer", "computers" -> "racunari";
+            case "ai", "artificial intelligence", "vjestacka inteligencija", "vestacka inteligencija", "umjetna inteligencija" -> "vjestacka inteligencija";
+            case "knjiga", "citanje", "reading", "book", "books" -> "knjige";
+            case "igre", "games", "igrice", "gejming" -> "video igre";
+            case "drustvene igre", "board games", "boardgames" -> "drustvene igre";
+            case "koncert" -> "koncerti";
+            case "festivali" -> "festival";
+            case "nocni zivot", "izlazak", "izlasci", "party", "parti", "zurke" -> "izlasci";
+            case "kafic", "cafe" -> "kafic";
+            case "restaurant" -> "restoran";
+            case "pozoriste", "teatar" -> "pozoriste";
+            case "mleko", "milk" -> "mlijeko";
+            case "sea", "mora" -> "more";
+            case "kupam", "kupati", "plivanje", "plivam", "bazen", "swimming", "pool" -> "kupanje";
+            case "plaza", "beach", "beaches" -> "plaza";
+            case "kafu", "coffee", "espresso", "espreso" -> "kafa";
+            case "caj", "tea" -> "caj";
+            case "juice" -> "sok";
+            case "water" -> "voda";
+            case "beer" -> "pivo";
+            case "wine" -> "vino";
+            case "brandy" -> "rakija";
+            case "food" -> "hrana";
+            case "pizza" -> "pica";
+            case "rostilj", "bbq", "barbecue" -> "rostilj";
+            case "cevapi", "kebapi", "kebab" -> "cevapi";
+            case "testenina", "tjestenina" -> "pasta";
+            case "hamburger" -> "burger";
+            case "sushi", "susi" -> "susi";
+            case "ice cream" -> "sladoled";
+            case "cokolada", "chocolate" -> "cokolada";
+            case "vienna", "wien" -> "bec";
+            case "paris" -> "pariz";
+            case "belgrade" -> "beograd";
+            case "liubliana" -> "ljubljana";
+            case "skopje" -> "skoplje";
+            case "carigrad" -> "istanbul";
+            case "barcelona" -> "barselona";
+            case "brussels", "bruxelles" -> "brisel";
+            case "lisbon" -> "lisabon";
+            case "copenhagen" -> "kopenhagen";
+            case "stockholm" -> "stokholm";
+            case "zurich", "zürich" -> "cirih";
+            case "geneva" -> "zeneva";
+            case "rome", "roma" -> "rim";
+            case "new york", "nyc" -> "njujork";
+            case "munich", "munchen", "muenchen" -> "minhen";
+            case "moscow" -> "moskva";
+            case "thessaloniki" -> "solun";
+            case "athens" -> "atina";
+            case "prague", "praha" -> "prag";
+            case "warsaw", "warszawa" -> "varsava";
+            case "budapest" -> "budimpesta";
+            case "venice", "venezia" -> "venecija";
+            case "florence", "firenze" -> "firenca";
+            case "becici" -> "becici";
+            case "montenegro" -> "crna gora";
+            case "serbia" -> "srbija";
+            case "croatia" -> "hrvatska";
+            case "bosna", "bih", "bosnia" -> "bosna i hercegovina";
+            case "italy" -> "italija";
+            case "spanija", "spain" -> "spanija";
+            case "france" -> "francuska";
+            case "njemacka", "nemacka", "germany" -> "njemacka";
+            case "austria" -> "austrija";
+            case "grcka", "greece" -> "grcka";
             default -> normalized;
         };
     }
@@ -147,6 +264,36 @@ public class MatchingService {
         Set<T> result = new java.util.LinkedHashSet<>(first);
         result.retainAll(second);
         return result;
+    }
+
+    private Set<String> interestGroups(Set<String> values) {
+        Set<String> groups = new java.util.LinkedHashSet<>();
+        for (String value : values) {
+            String normalized = normalize(value);
+            if (containsAny(normalized, "sport", "kosarka", "fudbal", "tenis", "odbojka", "rukomet", "trcanje", "teretana")) groups.add("sport");
+            if (containsAny(normalized, "muzika", "rep", "hip hop", "rok", "pop", "jazz", "koncert")) groups.add("muzika");
+            if (containsAny(normalized, "film", "serija", "pozoriste", "knjiga", "kultura", "umjetnost")) groups.add("kultura");
+            if (containsAny(normalized, "priroda", "setnja", "planinarenje", "putovanje", "kampovanje")) groups.add("priroda i putovanja");
+            if (containsAny(normalized, "tehnologija", "programiranje", "racunari", "video igre", "gaming")) groups.add("tehnologija");
+            if (containsAny(normalized, "edukacija", "ucenje", "nauka", "radionica")) groups.add("edukacija");
+        }
+        return groups;
+    }
+
+    private boolean containsAny(String value, String... terms) {
+        return Arrays.stream(terms).anyMatch(value::contains);
+    }
+
+    private String groupLabel(String group) {
+        return switch (group) {
+            case "sport" -> "sport";
+            case "muzika" -> "muzika";
+            case "kultura" -> "film i kultura";
+            case "priroda i putovanja" -> "priroda i putovanja";
+            case "tehnologija" -> "tehnologija";
+            case "edukacija" -> "edukacija";
+            default -> group;
+        };
     }
 
     private <T> Set<T> union(Set<T> first, Set<T> second) {

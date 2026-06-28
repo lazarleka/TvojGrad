@@ -7,6 +7,7 @@ let permissionRequested = false;
 let notificationsReady = false;
 let notificationOpenHandler = null;
 let notificationActionListenerReady = false;
+let backgroundNotificationActionListenerReady = false;
 const deliveredRequestKeys = new Set();
 
 const notificationIdFor = (key) =>
@@ -47,10 +48,28 @@ const ensureNotificationActionListener = async () => {
   });
 };
 
+const dispatchNotificationAction = (extra, event) => {
+  if (extra?.type && notificationOpenHandler) notificationOpenHandler(extra, event);
+};
+
+const ensureBackgroundNotificationActionListener = async () => {
+  if (!Capacitor.isNativePlatform() || backgroundNotificationActionListenerReady) return;
+  backgroundNotificationActionListenerReady = true;
+
+  await BackgroundNotifications.addListener("notificationActionPerformed", (extra) => {
+    dispatchNotificationAction(extra, { source: "background" });
+    void BackgroundNotifications.consumeNotificationAction();
+  });
+
+  const pending = await BackgroundNotifications.consumeNotificationAction();
+  dispatchNotificationAction(pending, { source: "background-launch" });
+};
+
 export const setMobileNotificationOpenHandler = async (handler) => {
   notificationOpenHandler = handler;
   if (handler) {
     await ensureNotificationActionListener();
+    await ensureBackgroundNotificationActionListener();
   }
 };
 export const initMobileNotifications = async () => {

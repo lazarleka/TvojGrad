@@ -4,7 +4,7 @@ import { API_BASE_URL } from '../api';
 
 export default function AuthPage({ setUser, navigate, toast }) {
   const [tab, setTab] = useState("login");
-  const [form, setForm] = useState({ name: "", email: "", password: "", role: "visitor" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "", role: "visitor" });
   
   const set = k => v => setForm(f => ({ ...f, [k]: v.target?.value ?? v }));
   const selectedUserType = form.role === "organizer" ? "organizator" : "obicni";
@@ -34,7 +34,11 @@ export default function AuthPage({ setUser, navigate, toast }) {
         profilna: korisnik.profilna || korisnik.Profilna || "",
         Profilna: korisnik.profilna || korisnik.Profilna || "",
         tip: korisnik.tip || korisnik.Tip,
-        Tip: korisnik.tip || korisnik.Tip
+        Tip: korisnik.tip || korisnik.Tip,
+        O_meni: korisnik.O_meni || korisnik.oMeni || korisnik.o_meni || "",
+        Interesovanja: korisnik.Interesovanja || korisnik.interesovanja || "",
+        Neinteresovanja: korisnik.Neinteresovanja || korisnik.neinteresovanja || "",
+        Grad: korisnik.Grad || korisnik.grad || ""
       };
 
       localStorage.setItem("user", JSON.stringify(userZaSkladistenje));
@@ -75,9 +79,13 @@ export default function AuthPage({ setUser, navigate, toast }) {
   };
 
   const register = async () => {
-    if (!form.name || !form.email || !form.password) { 
+    if (!form.name || !form.email || !form.password || !form.confirmPassword) { 
       toast("Popunite sva polja!"); 
       return; 
+    }
+    if (form.password !== form.confirmPassword) {
+      toast("Lozinke se ne poklapaju!");
+      return;
     }
 
     const nameParts = form.name.trim().split(" ");
@@ -153,6 +161,10 @@ export default function AuthPage({ setUser, navigate, toast }) {
             <div className="form-group">
               <label className="form-label">Lozinka</label>
               <input className="form-input" type="password" placeholder="••••••••" value={form.password} onChange={set("password")} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Potvrdi lozinku</label>
+              <input className="form-input" type="password" placeholder="••••••••" value={form.confirmPassword} onChange={set("confirmPassword")} onKeyDown={e => e.key === "Enter" && register()} />
             </div>
             <div className="form-group">
               <label className="form-label">Tip naloga</label>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { CAT_COLORS, G } from "../constants";
-import { formatDisplayDate } from "../api";
+import { formatDisplayDate, formatDisplayTime } from "../api";
 import { translateText } from "../i18n";
 
 const eventStatusLabel = (status) => {
@@ -33,6 +33,14 @@ const eventTimeValue = (event) => {
   const timeValue = datePart ? new Date(`${datePart}T${timePart || "00:00"}`).getTime() : Number.NaN;
   return Number.isFinite(timeValue) ? timeValue : 0;
 };
+const eventDateValue = (event) => {
+  const value = new Date(`${String(event?.date || "").slice(0, 10)}T00:00:00`).getTime();
+  return Number.isFinite(value) ? value : 0;
+};
+const eventStartMinutes = (event) => {
+  const [hours = 0, minutes = 0] = String(event?.time || "00:00").split(":").map(Number);
+  return (hours * 60) + minutes;
+};
 
 export default function AdminPage({
   events,
@@ -50,6 +58,7 @@ export default function AdminPage({
 }) {
   const [tab, setTab] = useState("pending");
   const [eventTimeTab, setEventTimeTab] = useState("active");
+  const [eventSort, setEventSort] = useState({ key: null, direction: "asc" });
   const nowTime = Date.now();
   const pending = events.filter((event) => ["pending", "na_cekanju", "na_cekanju_promovisana"].includes(event.status));
   const approved = events.filter((event) => event.status === "approved");
@@ -62,6 +71,24 @@ export default function AdminPage({
     .filter((event) => eventTimeValue(event) < nowTime)
     .sort((a, b) => eventTimeValue(b) - eventTimeValue(a));
   const shown = eventTimeTab === "past" ? pastShown : activeShown;
+  const dateOrder = new Map();
+  shown.forEach((event) => {
+    const date = String(event?.date || "").slice(0, 10);
+    if (!dateOrder.has(date)) dateOrder.set(date, dateOrder.size);
+  });
+  const sortedShown = [...shown].sort((a, b) => {
+    const direction = eventSort.direction === "desc" ? -1 : 1;
+    if (eventSort.key === "date") return direction * (eventDateValue(a) - eventDateValue(b));
+    if (eventSort.key === "time") {
+      const aDate = String(a?.date || "").slice(0, 10);
+      const bDate = String(b?.date || "").slice(0, 10);
+      const dateDifference = (dateOrder.get(aDate) || 0) - (dateOrder.get(bDate) || 0);
+      return dateDifference || direction * (eventStartMinutes(a) - eventStartMinutes(b));
+    }
+    return 0;
+  });
+  const toggleSort = (key) => setEventSort((current) => ({ key, direction: current.key === key && current.direction === "asc" ? "desc" : "asc" }));
+  const sortArrow = (key) => eventSort.key === key ? (eventSort.direction === "asc" ? " ▲" : " ▼") : " ↕";
   const isOrganizerTab = ["admins", "rejected-admins"].includes(tab);
   const organizerList = organizers.length ? organizers : adminRequests;
   const activeOrganizerList = organizerList.filter((organizer) => !isRejectedOrganizer(organizer));
@@ -162,10 +189,10 @@ export default function AdminPage({
           ) : (
             <table className="admin-table">
               <thead>
-                <tr><th>Dogadjaj</th><th>Kategorija</th><th>Grad</th><th>Datum</th><th>Organizator</th><th>Status</th><th>Glasovi</th><th>Akcije</th></tr>
+                <tr><th>Dogadjaj</th><th>Kategorija</th><th>Grad</th><th><button type="button" onClick={() => toggleSort("date")} style={{ all: "unset", cursor: "pointer", fontWeight: 700 }}>Datum{sortArrow("date")}</button></th><th><button type="button" onClick={() => toggleSort("time")} style={{ all: "unset", cursor: "pointer", fontWeight: 700 }}>Vrijeme{sortArrow("time")}</button></th><th>Organizator</th><th>Status</th><th>Glasovi</th><th>Akcije</th></tr>
               </thead>
               <tbody>
-                {shown.map((event) => (
+                {sortedShown.map((event) => (
                   <tr key={event.id} onClick={() => openEvent(event)} style={{ cursor: "pointer" }}>
                     <td>
                       <strong>{event.coverImg ? "" : event.emoji} {translateText(event.title, language)}</strong>
@@ -174,6 +201,7 @@ export default function AdminPage({
                     <td><span style={{ color: CAT_COLORS[event.category] || G.green, fontSize: 12, fontWeight: 600 }}>{translateText(event.category, language)}</span></td>
                     <td>{translateText(event.city, language)}</td>
                     <td style={{ whiteSpace: "nowrap" }}>{formatDisplayDate(event.date)}</td>
+                    <td style={{ whiteSpace: "nowrap" }}>{formatDisplayTime(event.time)}</td>
                     <td>{event.organizer || "/"}</td>
                     <td>{eventStatusLabel(event.status)}</td>
                     <td>{event.votes.up} / {event.votes.down}</td>
@@ -187,7 +215,7 @@ export default function AdminPage({
                   </tr>
                 ))}
                 {shown.length === 0 && (
-                  <tr><td colSpan={8} style={{ textAlign: "center", color: G.muted, padding: "2rem" }}>Nema dogadjaja.</td></tr>
+                  <tr><td colSpan={9} style={{ textAlign: "center", color: G.muted, padding: "2rem" }}>Nema dogadjaja.</td></tr>
                 )}
               </tbody>
             </table>

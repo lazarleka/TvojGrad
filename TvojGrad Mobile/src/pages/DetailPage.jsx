@@ -3,6 +3,7 @@ import { G } from "../constants";
 import EventMap from "../components/EventMap";
 import { API_BASE_URL, fetchUserVote, formatDisplayDate, formatDisplayTime, getEventAddress, getStoredUser, getUserId, removeLegacyVote, submitVote } from "../api";
 import { translateText } from "../i18n";
+import UserHoverCard from "../components/UserHoverCard";
 
 const newestFirst = (items) => [...(items || [])].sort((a, b) => Number(b?.ID || b?.id || 0) - Number(a?.ID || a?.id || 0));
 
@@ -468,7 +469,7 @@ export default function DetailPage({ event: e, navigate, toast, t = (key) => key
                       const matchColor = matchScore >= 75 ? "#16784f" : matchScore >= 50 ? "#39721d" : matchScore >= 25 ? "#a16609" : "#9b3c3c";
                       return (
                         <tr key={prijava.ID} style={{ borderBottom: "1px solid #f1f1f1" }}>
-                          <td data-label="Osoba">{fullName}</td>
+                          <td data-label="Osoba"><UserHoverCard user={korisnik}>{fullName}</UserHoverCard></td>
                           <td data-label="Poruka">{prijava.Tekst || "/"}</td>
                           <td data-label="Status">{prijava.Status || "/"}</td>
                           <td data-label="Podudaranje">

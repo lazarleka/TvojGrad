@@ -35,7 +35,7 @@ public class UploadController {
             Korisnik korisnik = korisnikService.azurirajProfilnu(ID, url);
             return ResponseEntity.ok(korisnik);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Slika nije sacuvana");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage() != null ? e.getMessage() : "Slika nije sacuvana");
         }
     }
 
@@ -54,6 +54,9 @@ public class UploadController {
         if (file == null || file.isEmpty() || file.getContentType() == null || !file.getContentType().startsWith("image/")) {
             throw new IllegalArgumentException("Dozvoljene su samo slike");
         }
+        if (file.getSize() > 15L * 1024L * 1024L) {
+            throw new IllegalArgumentException("Slika je prevelika. Maksimalna veličina je 15 MB");
+        }
         Path targetFolder = uploadRoot.resolve(folder).normalize();
         Files.createDirectories(targetFolder);
         String extension = extensionFor(file.getOriginalFilename(), file.getContentType());
@@ -69,11 +72,12 @@ public class UploadController {
     private String extensionFor(String originalFilename, String contentType) {
         if (originalFilename != null && originalFilename.contains(".")) {
             String ext = originalFilename.substring(originalFilename.lastIndexOf(".")).toLowerCase(Locale.ROOT);
-            if (ext.matches("\\.(png|jpg|jpeg|webp|gif)")) return ext;
+            if (ext.matches("\\.(png|jpg|jpeg|webp|gif|avif)")) return ext;
         }
         if (contentType.endsWith("png")) return ".png";
         if (contentType.endsWith("webp")) return ".webp";
         if (contentType.endsWith("gif")) return ".gif";
+        if (contentType.endsWith("avif")) return ".avif";
         return ".jpg";
     }
 }

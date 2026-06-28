@@ -105,7 +105,7 @@ public class DogadjajRepositories {
         if (datum == null || vreme.isBlank() || adresa.isBlank()) return;
 
         if (dogadjajPostojiNaIstomMjestu(conn, datum, vreme, adresa, excludeID)) {
-            throw new IllegalArgumentException("Dogadjaj sa istim datumom, vremenom i mjestom vec postoji.");
+            throw new IllegalArgumentException("Događaj sa istim datumom, vremenom i mjestom već postoji.");
         }
     }
 

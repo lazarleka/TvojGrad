@@ -1,0 +1,200 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------------< com.example:demo >--------------------------
+[INFO] Building demo 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.0.3:run (default-cli) > test-compile @ demo >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ demo ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ demo ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ demo ---
+[INFO] skip non existing resourceDirectory C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ demo ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< spring-boot:4.0.3:run (default-cli) < test-compile @ demo <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.0.3:run (default-cli) @ demo ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.3)
+
+2026-06-28T15:37:33.627+02:00  INFO 18288 --- [TvojGrad] [           main] c.example.TvojGrad.TvojGradApplication   : Starting TvojGradApplication using Java 21.0.11 with PID 18288 (C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend\target\classes started by User in C:\Users\User\OneDrive\Desktop\TvojGrad\TvojGrad beckend)
+2026-06-28T15:37:33.631+02:00  INFO 18288 --- [TvojGrad] [           main] c.example.TvojGrad.TvojGradApplication   : No active profile set, falling back to 1 default profile: "default"
+2026-06-28T15:37:35.075+02:00  INFO 18288 --- [TvojGrad] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-06-28T15:37:35.107+02:00  INFO 18288 --- [TvojGrad] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-06-28T15:37:35.110+02:00  INFO 18288 --- [TvojGrad] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.18]
+2026-06-28T15:37:35.191+02:00  INFO 18288 --- [TvojGrad] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1471 ms
+2026-06-28T15:37:37.219+02:00  INFO 18288 --- [TvojGrad] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-06-28T15:37:37.222+02:00  INFO 18288 --- [TvojGrad] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@2753316c]]
+2026-06-28T15:37:37.227+02:00  INFO 18288 --- [TvojGrad] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-06-28T15:37:37.255+02:00  INFO 18288 --- [TvojGrad] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-06-28T15:37:37.266+02:00  INFO 18288 --- [TvojGrad] [           main] c.example.TvojGrad.TvojGradApplication   : Started TvojGradApplication in 4.413 seconds (process running for 5.015)
+2026-06-28T15:37:37.516+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-11] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-06-28T15:37:37.519+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-11] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-06-28T15:37:37.524+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-11] o.s.web.servlet.DispatcherServlet        : Completed initialization in 5 ms
+Gemini SSL sertifikat nije prihva?en kroz Java truststore; ponavljam Gemini poziv preko dev SSL klijenta.
+2026-06-28T15:38:37.277+02:00  INFO 18288 --- [TvojGrad] [MessageBroker-5] o.s.w.s.c.WebSocketMessageBrokerStats    : WebSocketSession[57 current WS(57)-HttpStream(0)-HttpPoll(0), 57 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(59)-CONNECTED(59)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 16, active threads = 0, queued tasks = 0, completed tasks = 717], outboundChannel[pool size = 16, active threads = 0, queued tasks = 0, completed tasks = 59], sockJsScheduler[pool size = 8, active threads = 1, queued tasks = 61, completed tasks = 98]
+2026-06-28T15:39:25.119+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-3] .w.s.m.s.DefaultHandlerExceptionResolver : Ignoring exception, response committed already: org.springframework.http.converter.HttpMessageNotWritableException: Could not write JSON: ServletOutputStream failed to write: java.io.IOException: An established connection was aborted by the software in your host machine
+Gemini SSL sertifikat nije prihva?en kroz Java truststore; ponavljam Gemini poziv preko dev SSL klijenta.
+2026-06-28T15:39:50.098+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-25] .w.s.m.s.DefaultHandlerExceptionResolver : Ignoring exception, response committed already: org.springframework.http.converter.HttpMessageNotWritableException: No converter for [class java.util.LinkedHashMap] with preset Content-Type 'text/event-stream;charset=UTF-8'
+2026-06-28T15:39:50.103+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-25] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.http.converter.HttpMessageNotWritableException: No converter for [class java.util.LinkedHashMap] with preset Content-Type 'text/event-stream;charset=UTF-8']
+2026-06-28T15:39:50.098+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-20] .w.s.m.s.DefaultHandlerExceptionResolver : Ignoring exception, response committed already: org.springframework.http.converter.HttpMessageNotWritableException: No converter for [class java.util.LinkedHashMap] with preset Content-Type 'application/javascript;charset=UTF-8'
+2026-06-28T15:39:50.107+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-20] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.http.converter.HttpMessageNotWritableException: No converter for [class java.util.LinkedHashMap] with preset Content-Type 'application/javascript;charset=UTF-8']
+2026-06-28T15:39:50.098+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-28] .w.s.m.s.DefaultHandlerExceptionResolver : Ignoring exception, response committed already: org.springframework.http.converter.HttpMessageNotWritableException: No converter for [class java.util.LinkedHashMap] with preset Content-Type 'text/event-stream;charset=UTF-8'
+2026-06-28T15:39:50.098+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-32] .w.s.m.s.DefaultHandlerExceptionResolver : Ignoring exception, response committed already: org.springframework.http.converter.HttpMessageNotWritableException: No converter for [class java.util.LinkedHashMap] with preset Content-Type 'application/javascript;charset=UTF-8'
+2026-06-28T15:39:50.110+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-28] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.http.converter.HttpMessageNotWritableException: No converter for [class java.util.LinkedHashMap] with preset Content-Type 'text/event-stream;charset=UTF-8']
+2026-06-28T15:39:50.098+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-31] .w.s.m.s.DefaultHandlerExceptionResolver : Ignoring exception, response committed already: org.springframework.http.converter.HttpMessageNotWritableException: No converter for [class java.util.LinkedHashMap] with preset Content-Type 'text/event-stream;charset=UTF-8'
+2026-06-28T15:39:50.110+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-32] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.http.converter.HttpMessageNotWritableException: No converter for [class java.util.LinkedHashMap] with preset Content-Type 'application/javascript;charset=UTF-8']
+2026-06-28T15:39:50.110+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-31] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.http.converter.HttpMessageNotWritableException: No converter for [class java.util.LinkedHashMap] with preset Content-Type 'text/event-stream;charset=UTF-8']
+2026-06-28T15:39:55.438+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-22] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 76877 ms. Closing EventSourceStreamingSockJsSession[id=qrbwhs1c].
+2026-06-28T15:39:55.446+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-22] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 67646 ms. Closing EventSourceStreamingSockJsSession[id=rqoxtjfa].
+2026-06-28T15:39:55.450+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-22] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 76819 ms. Closing EventSourceStreamingSockJsSession[id=g3yekd00].
+2026-06-28T15:39:55.450+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-22] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 76848 ms. Closing EventSourceStreamingSockJsSession[id=tnacgx3p].
+2026-06-28T15:39:55.452+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-22] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 77663 ms. Closing XhrStreamingSockJsSession[id=eqiswlzy].
+2026-06-28T15:39:55.454+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-22] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 76819 ms. Closing EventSourceStreamingSockJsSession[id=v2nwb3r0].
+2026-06-28T15:39:55.454+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-22] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 67641 ms. Closing EventSourceStreamingSockJsSession[id=h0zk3nyo].
+2026-06-28T15:39:55.456+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-22] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 77660 ms. Closing XhrStreamingSockJsSession[id=me2vnwnq].
+2026-06-28T15:39:55.456+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-22] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 76841 ms. Closing EventSourceStreamingSockJsSession[id=qgvgcdpn].
+2026-06-28T15:39:55.456+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-22] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 67646 ms. Closing EventSourceStreamingSockJsSession[id=r41bhl3b].
+2026-06-28T15:39:55.456+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-22] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 77665 ms. Closing XhrStreamingSockJsSession[id=gkkurmit].
+2026-06-28T15:39:55.458+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-22] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 76849 ms. Closing EventSourceStreamingSockJsSession[id=e1wsoy4m].
+2026-06-28T15:39:55.658+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-30] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:39:55.716+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-17] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:39:55.734+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-15] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:39:57.913+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-19] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:39:58.135+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-1] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:39:58.145+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-31] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:39:58.195+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-11] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:39:58.391+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-14] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:39:58.391+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-4] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.560+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-28] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 123977 ms. Closing EventSourceStreamingSockJsSession[id=clduaeec].
+2026-06-28T15:42:05.563+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-28] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 123898 ms. Closing EventSourceStreamingSockJsSession[id=jvcht0ea].
+2026-06-28T15:42:05.564+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-28] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 123779 ms. Closing EventSourceStreamingSockJsSession[id=nr3jfa0x].
+2026-06-28T15:42:05.564+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-28] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 123782 ms. Closing EventSourceStreamingSockJsSession[id=q1iychvp].
+2026-06-28T15:42:05.564+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-28] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 125255 ms. Closing XhrStreamingSockJsSession[id=be3lz35e].
+2026-06-28T15:42:05.564+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-28] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 124252 ms. Closing EventSourceStreamingSockJsSession[id=jqp2mbzg].
+2026-06-28T15:42:05.566+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-28] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 123697 ms. Closing EventSourceStreamingSockJsSession[id=knslsaxm].
+2026-06-28T15:42:05.642+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-11] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.648+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-36] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.661+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-30] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.668+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-35] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.684+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-10] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.689+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-14] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.695+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-22] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.704+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-13] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.714+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-33] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.731+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-20] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.805+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-1] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.814+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-36] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.823+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-36] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.833+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-34] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.839+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-4] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.844+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-30] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.849+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-31] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.880+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-29] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.888+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-13] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.910+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-5] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.918+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-6] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.974+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-16] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:05.998+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-35] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.026+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-9] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.038+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-22] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.057+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-32] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.068+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-33] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.078+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-27] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.088+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-1] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.097+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-20] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.104+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-2] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.116+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-17] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.128+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-16] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.149+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-14] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.153+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-15] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.157+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-22] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.172+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-29] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.186+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-13] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.193+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-6] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.221+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-37] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.229+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-12] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.242+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-22] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.252+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-19] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.259+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-35] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.268+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-20] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.280+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-9] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.294+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-3] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.305+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-26] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.328+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-7] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.349+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-15] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.364+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-24] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.393+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-18] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.403+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-31] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.428+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-9] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.437+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-28] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.445+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-17] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.452+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-6] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.469+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-34] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.496+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-25] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.507+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-35] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.528+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-28] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.544+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-3] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.553+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-5] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.559+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-12] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.568+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-34] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.587+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-37] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.596+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-30] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.616+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-35] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.622+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-18] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.645+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-21] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.651+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-3] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.660+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-32] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.670+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-12] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:42:06.680+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-13] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:45:05.430+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-21] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 114427 ms. Closing EventSourceStreamingSockJsSession[id=nsmt1qam].
+2026-06-28T15:45:05.434+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-21] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 115472 ms. Closing XhrStreamingSockJsSession[id=r1doxdfe].
+2026-06-28T15:45:05.437+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-21] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 114494 ms. Closing EventSourceStreamingSockJsSession[id=xn4f1wg1].
+2026-06-28T15:45:05.441+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-21] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 114051 ms. Closing EventSourceStreamingSockJsSession[id=4uqr5n1v].
+2026-06-28T15:45:05.446+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-21] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 114313 ms. Closing EventSourceStreamingSockJsSession[id=hiqbgy41].
+2026-06-28T15:45:05.447+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-21] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 114030 ms. Closing EventSourceStreamingSockJsSession[id=hz44qlix].
+2026-06-28T15:45:05.451+02:00  INFO 18288 --- [TvojGrad] [.0-8080-exec-21] o.s.w.s.m.SubProtocolWebSocketHandler    : No messages received after 114016 ms. Closing EventSourceStreamingSockJsSession[id=j3ws2152].
+2026-06-28T15:45:05.497+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-36] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:45:05.514+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-2] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:45:05.527+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-14] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:45:05.533+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-26] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:45:05.539+02:00  WARN 18288 --- [TvojGrad] [0.0-8080-exec-5] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:45:05.544+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-21] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:45:05.550+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-11] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+2026-06-28T15:45:05.560+02:00  WARN 18288 --- [TvojGrad] [.0-8080-exec-20] o.s.w.s.s.t.h.DefaultSockJsService       : Origin check enabled but transport 'jsonp' does not support it.
+Gemini SSL sertifikat nije prihva?en kroz Java truststore; ponavljam Gemini poziv preko dev SSL klijenta.
+Gemini SSL sertifikat nije prihva?en kroz Java truststore; ponavljam Gemini poziv preko dev SSL klijenta.
+Gemini SSL sertifikat nije prihva?en kroz Java truststore; ponavljam Gemini poziv preko dev SSL klijenta.
+2026-06-28T17:04:59.832+02:00  INFO 18288 --- [TvojGrad] [MessageBroker-3] o.s.w.s.c.WebSocketMessageBrokerStats    : WebSocketSession[1 current WS(0)-HttpStream(1)-HttpPoll(0), 343 total, 26 closed abnormally (26 connect failure, 0 send limit, 263 transport error)], stompSubProtocol[processed CONNECT(317)-CONNECTED(317)-DISCONNECT(5)], stompBrokerRelay[null], inboundChannel[pool size = 16, active threads = 0, queued tasks = 11, completed tasks = 7731], outboundChannel[pool size = 16, active threads = 0, queued tasks = 0, completed tasks = 660], sockJsScheduler[pool size = 8, active threads = 3, queued tasks = 0, completed tasks = 7671]
+2026-06-28T17:35:45.215+02:00  INFO 18288 --- [TvojGrad] [MessageBroker-4] o.s.w.s.c.WebSocketMessageBrokerStats    : WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 343 total, 26 closed abnormally (26 connect failure, 0 send limit, 263 transport error)], stompSubProtocol[processed CONNECT(317)-CONNECTED(317)-DISCONNECT(5)], stompBrokerRelay[null], inboundChannel[pool size = 9, active threads = 0, queued tasks = 0, completed tasks = 7746], outboundChannel[pool size = 14, active threads = 0, queued tasks = 0, completed tasks = 665], sockJsScheduler[pool size = 8, active threads = 2, queued tasks = 1, completed tasks = 8531]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  02:01 h
+[INFO] Finished at: 2026-06-28T17:39:23+02:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:4.0.3:run (default-cli) on project demo: Process terminated with exit code: 1 -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
